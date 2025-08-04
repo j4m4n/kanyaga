@@ -1,0 +1,86 @@
+<html>
+<head>
+  <title>boids base</title>
+  <style>
+  * {margin: 0;}
+  html {background-color: #222;}
+  body { margin: 0;  color: #fff;
+    font-family: monospace; overflow: hidden;}
+  canvas { width: 100%; height: 100%;}
+    </style>
+</head>
+<body>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.110.0/examples/js/controls/OrbitControls.js"></script>
+
+
+  <script>
+  var num = 0;
+  // initialise 3D scene
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(75,window.innerWidth / window.innerHeight,0.1,1000);
+
+  // render
+  var renderer = new THREE.WebGLRenderer({alpha: true, antialias: true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  // camera
+  camera.position.z = 100;
+  camera.position.y = 10;
+
+  // controls
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enablePan = false;
+  controls.maxDistance = 200;
+  controls.minDistance = 1;
+  controls.maxPolarAngle = Math.PI * 0.49;
+
+  // lights
+  var lights = [];
+  lights[ 0 ] = new THREE.PointLight( 0xffffff, 1, 0 );
+  lights[ 1 ] = new THREE.PointLight( 0xffffff, 1, 0 );
+  lights[ 2 ] = new THREE.PointLight( 0xffffff, 1, 0 );
+
+  lights[ 0 ].position.set( 0, 200, 0 );
+  lights[ 1 ].position.set( 100, 200, 100 );
+  lights[ 2 ].position.set( - 100, - 200, - 100 );
+
+  scene.add( lights[ 0 ] );
+  scene.add( lights[ 1 ] );
+  scene.add( lights[ 2 ] );
+
+
+  // handle window resize
+  window.addEventListener('resize', function(){
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+  }, false)
+
+
+
+
+// render loop
+  var animate = function() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  
+  // add boids
+    if (typeof boids !== 'undefined') {
+      animationLoop();
+    }
+  //
+
+  };
+
+
+// start
+  animate();
+</script>
+
+<script src="boids.js"></script>
+
+</body>
+</html>

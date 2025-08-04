@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Boids</title>
+  <style type="text/css">
+  html {background-color: #00bad8;}
+  body {
+    margin: 0;
+    background: #282c34;
+    overflow: hidden;
+    margin: 0;  color: #fff;
+    font-family: monospace; overflow: hidden;}
+    canvas { width: 100%; height: 100%;}
+    #cnv {position: absolute; z-index: 99; top: 0;} 
+    #boids {position: absolute; z-index: 1; top: 0;}
+  </style>    
+</head>
+<body>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/102/three.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.102.0/examples/js/controls/OrbitControls.js"></script>
+
+  <canvas id="boids" width="150" height="150"></canvas>
+
+</body>
+<script>
+var boidbox,scene,camera,renderer,geometry,material;
+let width = 20;
+let height = 20;
+const numBoids = 50;
+const visualRange = 50;
+var boids = [];
+var boids3D = [];
+const speedLimit = 2;
+
+function startthree() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+
+  renderer = new THREE.WebGLRenderer({alpha: true, antialias: true});
+  renderer.setSize( window.innerWidth, window.innerHeight );
+  renderer.domElement.id = 'cnv';
+  document.body.appendChild( renderer.domElement );
+
+  geometry = new THREE.BoxGeometry( 0.2, 3, 0.2 );
+  material = new THREE.MeshBasicMaterial( { color: 0x003333 } );
+  boidbox = new THREE.Mesh( geometry, material );
+  scene.add( boidbox );
+    // boidbox.visible = false;
+
+    camera.position.z = 20;
+    camera.position.y = 5;
+
+    // controls
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enablePan = false;
+    controls.maxDistance = 50;
+    controls.minDistance = 1;
+    controls.maxPolarAngle = Math.PI * 0.49;
+
+    // grid
+    var size = 100;
+    var divisions = 1;
+    var gridHelper = new THREE.GridHelper( size, divisions );
+    scene.add( gridHelper );
+
+  }
+
+
+  function animate() {
+    renderer.render( scene, camera );
+    animationLoop()
+    requestAnimationFrame( animate );
+  };
+
+//
+function initBoids() {
+  for (var i = 0; i < numBoids; i += 1) {
+    var boidclone = boidbox.clone();
+    boidclone.visible = true;
+    scene.add(boidclone);
+    boids3D.push(boidclone)
+  //
+  boids[boids.length] = {
+    x: Math.random() * width,
+    y: Math.random() * height,
+    dx: Math.random() * 10 - 5,
+    dy: Math.random() * 10 - 5
+  };
+}
+}
+
+
+function distance(boid1, boid2) {
+  return Math.sqrt(
+    (boid1.x - boid2.x) * (boid1.x - boid2.x) +
+    (boid1.y - boid2.y) * (boid1.y - boid2.y),
+    );
+}
+
+// TODO: This is naive and inefficient.
+function nClosestBoids(boid, n) {
+// Make a copy
+const sorted = boids.slice();
+// Sort the copy by distance from `boid`
+sorted.sort((a, b) => distance(boid, a) - distance(boid, b));
+// Return the `n` closest
+return sorted.slice(1, n + 1);
+}
+
+
+// Constrain a boid to within the window. If it gets too close to an edge,
+// nudge it back in and reverse its direction.
+function keepWithinBounds(boid) {
+  const margin = 200;
+  const turnFactor = 1;
+
+  if (boid.x < margin) {
+    boid.dx += turnFactor;
+  }
+  if (boid.x > width - margin) {
+    boid.dx -= turnFactor
+  }
+  if (boid.y < margin) {
+    boid.dy += turnFactor;
+  }
+  if (boid.y > height - margin) {
+    boid.dy -= turnFactor;
+  }
+}
+
+// Find the center of mass of the other boids and adjust velocity slightly to
+// point towards the center of mass.
+function flyTowardsCenter(boid) {
+const centeringFactor = 0.005; // adjust velocity by this %
+
+let centerX = 0;
+let centerY = 0;
+let numNeighbors = 0;
+
+for (let otherBoid of boids) {
+  if (distance(boid, otherBoid) < visualRange) {
+    centerX += otherBoid.x;
+    centerY += otherBoid.y;
+    numNeighbors += 1;
+  }
+}
+
+if (numNeighbors) {
+  centerX = centerX / numNeighbors;
+  centerY = centerY / numNeighbors;
+
+  boid.dx += (centerX - boid.x) * centeringFactor;
+  boid.dy += (centerY - boid.y) * centeringFactor;
+}
+}
+
+// Move away from other boids that are too close to avoid colliding
+function avoidOthers(boid) {
+const minDistance = 20; // The distance to stay away from other boids
+const avoidFactor = 0.05; // Adjust velocity by this %
+let moveX = 0;
+let moveY = 0;
+for (let otherBoid of boids) {
+  if (otherBoid !== boid) {
+    if (distance(boid, otherBoid) < minDistance) {
+      moveX += boid.x - otherBoid.x;
+      moveY += boid.y - otherBoid.y;
+    }
+  }
+}
+
+boid.dx += moveX * avoidFactor;
+boid.dy += moveY * avoidFactor;
+}
+
+// Find the average velocity (speed and direction) of the other boids and
+// adjust velocity slightly to match.
+function matchVelocity(boid) {
+const matchingFactor = 0.05; // Adjust by this % of average velocity
+
+let avgDX = 0;
+let avgDY = 0;
+let numNeighbors = 0;
+
+for (let otherBoid of boids) {
+  if (distance(boid, otherBoid) < visualRange) {
+    avgDX += otherBoid.dx;
+    avgDY += otherBoid.dy;
+    numNeighbors += 1;
+  }
+}
+
+if (numNeighbors) {
+  avgDX = avgDX / numNeighbors;
+  avgDY = avgDY / numNeighbors;
+
+  boid.dx += (avgDX - boid.dx) * matchingFactor;
+  boid.dy += (avgDY - boid.dy) * matchingFactor;
+}
+}
+
+// Speed will naturally vary in flocking behavior, but real animals can't go
+// arbitrarily fast.
+function limitSpeed(boid) {
+  const speed = Math.sqrt(boid.dx * boid.dx + boid.dy * boid.dy);
+  if (speed > speedLimit) {
+    boid.dx = (boid.dx / speed) * speedLimit;
+    boid.dy = (boid.dy / speed) * speedLimit;
+  }
+}
+
+const DRAW_TRAIL = false;
+
+
+// Main animation loop
+function animationLoop() {
+// Update each boid
+for (let boid of boids) {
+  // Update the velocities according to each rule
+  flyTowardsCenter(boid);
+  avoidOthers(boid);
+  matchVelocity(boid);
+  limitSpeed(boid);
+  keepWithinBounds(boid);
+
+  // Update the position based on the current velocity
+  boid.x += boid.dx;
+  boid.y += boid.dy;
+}
+
+// 
+for ( var i = 0; i < boids3D.length; i ++ ) {
+  boids3D[i].position.x = (boids[i].x/4)-(width/2); 
+  boids3D[i].position.z = (boids[i].y/4)-(height/2);
+  // boids3D[i].rotation.y = Math.atan(boids[i].dx,boids[i].dy);
+  // boids3D[i].rotation.x = boids[i].dx/20;
+  // boids3D[i].rotation.z = boids[i].dy/20;
+  // boids3D[i].rotation.x = (boids3D[i].position.z - boids3D[i].position.z) * 0.3;
+  // boids3D[i].rotation.z = -(boids3D[i].position.x - boids3D[i].position.x) * 0.3;
+}
+
+}
+
+// handle window resize
+window.addEventListener('resize', function(){
+  renderer.setSize( window.innerWidth, window.innerHeight );
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+}, false)
+
+
+
+  // start
+  startthree();
+  initBoids();
+  animate();
+
+</script>
+
+
+</html>
