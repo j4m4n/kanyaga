@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>packing</title>
+</head>
+<body>
+  <canvas id="canvas" width="512" height="512" style="border:#ccc 1px solid;">
+  <canvas id="hitcanvas" width="512" height="512" style="border:#ccc 1px solid;">
+
+<script>
+// img
+var hitimg = new Image();
+hitimg.onload = ready;
+hitimg.src = "dome-hit.png";
+
+// hit canvas
+var hitcanvas = document.getElementById("hitcanvas"),
+    htx = hitcanvas.getContext("2d");
+hitcanvas.id = "hitcanvas";
+hitplanewidth = 51.2;
+hitcanvas.width = 512;
+hitcanvas.height = 512;
+document.body.appendChild(hitcanvas);
+
+
+// trees
+var canvas = document.getElementById("canvas"),
+    context = canvas.getContext("2d");
+// array
+var circles = [],
+    min = 5,
+    max = 30;
+
+
+// draw circles
+function draw() {
+  var c = createCircle();
+  var counter = 0;
+  while(!isValid(c)) {
+    c.x = Math.random() * 512;
+    c.y = Math.random() * 512;
+    counter++;
+    
+    if(counter > 1000) {
+      // console.log(circles)
+      return;
+    }
+  }
+  
+  while(isValid(c)){
+    c.r++;
+  }
+
+  c.r -= 2;
+  circles.push(c);
+  drawCircle(c);
+  requestAnimationFrame(draw);
+  
+}
+
+
+
+function isValid(c) {
+  if (c.r > max) {
+    return false;
+  }
+
+  for (var i = 0; i < circles.length; i++) {
+    var c2 = circles[i],
+    dx = c2.x - c.x,
+    dy = c2.y - c.y,
+    dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < c2.r + c.r) {
+      return false;
+    } 
+  }
+    
+    // get hitcanvas red value
+    xdata = htx.getImageData(c.x, c.y, 1, 1);
+    // console.log(xdata.data[0])
+    if (xdata.data[0] > 5) {
+      return false;
+    }
+
+  return true;
+}
+
+
+
+function createCircle() {
+  return {
+    x: Math.random() * 512,
+    y: Math.random() * 512,
+    r: min
+  };   
+}
+
+
+
+function drawCircle(c) {
+  // if (c.r<=max*0.965) {context.fillStyle = '#111';}
+  if (c.r<=max*0.8) {context.fillStyle = '#111';}
+  if (c.r<=max*0.6) {context.fillStyle = '#222';}
+  if (c.r<=max*0.4) {context.fillStyle = '#333';}
+  if (c.r<=max*0.2) {context.fillStyle = '#444';}
+
+  context.beginPath();
+  context.arc(c.x, c.y, c.r, 0, Math.PI*2);
+  context.fill();
+}
+
+
+// img loaded > start <<<<<    
+function ready() {
+  htx.drawImage(hitimg, 0, 0, 512, 512);
+  draw();
+}
+  	</script>
+</body>
+</html>
