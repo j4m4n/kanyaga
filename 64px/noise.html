@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>noise</title>
+	<style>
+		body {
+        margin: 0;
+        background: #1a1a1b;
+        overflow: hidden;
+        cursor: crosshair;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        font-family: monospace;
+        color: #eee;
+        user-select: none;
+      } 
+	</style>
+</head>
+<body>
+    <script src="js/perlin.js"></script>
+    <script>
+    // perlincanvas
+	perlincanvas = document.createElement('canvas');
+	ptx = perlincanvas.getContext('2d');
+	perlincanvas.width = 64;
+	perlincanvas.height = 64;
+	perlincanvas.id = "perlincanvas";
+	document.body.appendChild(perlincanvas);
+	var xspeed = 2000;
+	var xlerp = 0;
+	var fn = 'simplex'
+	ximage = ptx.createImageData(perlincanvas.width, perlincanvas.height);
+	data = ximage.data;
+	var num = 0;
+
+
+// bring the noise
+function drawFrame(num) {
+	xlerp++;
+  var max = -Infinity, min = Infinity;
+  var noisefn = noise.simplex3;
+
+  for (var x = 0; x < perlincanvas.width; x++) {
+    for (var y = 0; y < perlincanvas.height; y++) {
+      var value = noisefn((x / 32), (y / 32), num*0.01);
+
+      if (max < value) max = value;
+      if (min > value) min = value;
+
+      value = (1 + value) * 0.7 * 32;
+
+      var cell = (x + y * perlincanvas.width) * 4;
+      data[cell] = data[cell + 1] = data[cell + 2] = value;
+      data[cell + 3] = 255;
+    }
+  }
+
+  // put perlin image
+  ptx.putImageData(ximage, 0, 0);
+}	
+
+
+
+
+function animate() {
+	requestAnimationFrame( animate );
+	num++;
+	drawFrame(num);
+ }
+
+animate()
+</script>
+</body>
+</html>
