@@ -1,0 +1,627 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width">
+	<title>level test 2</title>
+	<style>
+		@font-face {
+			font-family: 'prstartk';
+			src: url('fonts/prstartk-webfont.woff2') format('woff2'),
+			url('fonts/prstartk-webfont.woff') format('woff');
+			font-weight: normal;
+			font-style: normal;
+		}
+		body {
+			background: #ff0000;
+			color: #46261d;
+			overflow: hidden;
+			margin:0;
+			user-select:none;
+			font-family: 'prstartk';
+		}
+		canvas {  
+			image-rendering: auto;
+			image-rendering: crisp-edges;
+			image-rendering: pixelated;
+		}
+		#colcanvas, #hitcanvas {
+			position: absolute;
+			top:-100px;
+			left:-100px;
+			padding: 2px;
+			background: #222;
+/*			border-radius: 50%;*/
+			transform: scale(0.5);
+		} 
+
+		.on #colcanvas, .off #hitcanvas  {display: block;}
+		.off #colcanvas, .on #hitcanvas  {display: none;}
+		
+		#hud {position: absolute; top: 0; left: 0; z-index: 99;
+			font-family: 'prstartk'; color: #fff; padding: 8px; 
+			background-color: rgba(0,0,0,0.5);
+		}
+		p {
+			margin: 0.75em;
+		}
+		#btn {
+			font-family: 'prstartk';
+			background: transparent; border: none;
+			outline: none; color: #fff; padding: 12px;
+			cursor: pointer; z-index: 99;
+		}
+		#btn:active {color:#ffff00;}
+		#btn.on {background:#ff0000;}
+/*#colcanvas, #hitcanvas  {display: none;}*/
+</style>
+
+</head>
+<body class="on">
+
+	<div id="hud">
+		<button id="btn" onclick="clickbtn()">x</button>
+		<p id="xvar">xvar</p>
+	</div>
+
+	<canvas id="colcanvas" width="512" height="512" ></canvas>
+	<canvas id="hitcanvas" width="512" height="512" ></canvas>
+
+
+	<div class="joy" id="joy"></div>
+
+
+	<script src="js/three.min.js"></script>
+	<script src="js/nipplejs.min.js"></script>
+<!-- <script src="circle.js"></script> -->
+
+<script>
+var img1 = new Image();
+var img2 = new Image();
+
+
+	npcArray = [];
+	// keyboard
+	keyboard = {
+		_pressed: {},
+
+		LEFT: 37,
+		UP: 38,
+		RIGHT: 39,
+		DOWN: 40,
+
+		isDown: function(keyCode) {
+			return this._pressed[keyCode];
+		},
+
+		onKeydown: function(event) {
+			this._pressed[event.keyCode] = true;
+		},
+
+		onKeyup: function(event) {
+			delete this._pressed[event.keyCode];
+		}
+	};
+
+
+	// keyboard events
+	window.addEventListener('keyup', function(event) { keyboard.onKeyup(event); }, false);
+	window.addEventListener('keydown', function(event) { keyboard.onKeydown(event);
+}, false);
+
+	// button
+	var btn = document.getElementById('btn');
+	btn.addEventListener('onclick', function(event) { 
+		btn.classList.toggle('on');
+	}, false);
+
+
+	function clickbtn() {
+		document.getElementById('btn').classList.toggle('on');	
+		if (document.getElementById('btn').classList == 'on') {
+			document.body.classList = 'off';
+		} else {
+			document.body.classList = 'on';
+		}
+	}
+
+	// globals
+	const treepos = 20;
+	const HERO = {
+		allowmove:true,
+		moving:false,
+		maxSpeed:1,
+		posx:0,
+		posz:0,
+		x:0,
+		y:0,
+		vx:0,
+		vy:0,
+		xdata:0
+	};
+
+	// speed limiter
+	function speedLimit(vx, vy, speedLimit) {
+		const hyp = Math.hypot(vx, vy);
+		if (hyp === 0) return { vx: 0, vy: 0 };
+		const maxSpeed = Math.min(hyp, speedLimit);
+		const ratio = maxSpeed / hyp;
+		return {
+			vx: ratio * vx,
+			vy: ratio * vy
+		};
+	}
+
+
+
+	// hit canvas
+	var hitcanvas = document.getElementById("hitcanvas"),
+	htx = hitcanvas.getContext("2d", { willReadFrequently: true });
+	hitcanvas.id = "hitcanvas";
+	hitcanvas.width = 512;
+	hitcanvas.height = hitcanvas.width;
+	// collision bounding circle
+	htx.fillStyle = '#fff';
+	htx.fillRect(0, 0, hitcanvas.width, hitcanvas.width);
+	htx.fillStyle = 'black';
+	htx.beginPath();
+	aliasedCircle(htx, 255, 255, 254);
+	htx.fill();
+	// document.body.appendChild(hitcanvas);
+
+	// bg
+	// base bg colour
+	var colcanvas = document.getElementById("colcanvas"),
+	ttx = colcanvas.getContext("2d");
+	colcanvas.width = colcanvas.height = 512;
+
+	// texture canvas
+	ttx.fillStyle = '#e60087';
+	ttx.fillRect(0, 0, colcanvas.width, colcanvas.width);
+
+
+	// images	
+	img1.onload = function () {
+		htx.drawImage(img1, 0, 0);
+	};
+	img1.src = 'level-1base.png';
+
+	img2.onload = function () {
+		ttx.drawImage(img2, 0, 0);
+		createbaseNPC();
+		// for(var i = 0; i < npcpos.length; i++) {
+		// 	makeNPC(npcpos[i].x-256,treepos,npcpos[i].y-256,npcpos[i].r/10);  
+		// }
+		colplane.material.map.needsUpdate = true;
+	};
+	img2.src = 'level-col.png';
+
+
+	// create pixellated circle
+	function aliasedCircle(ctx, xc, yc, r) {  
+		var x = r, y = 0, cd = 0;
+
+		// middle line
+		ctx.rect(xc - x, yc, r<<1, 1);
+
+		while (x > y) {
+			cd -= (--x) - (++y);
+			if (cd < 0) cd += x++;
+				ctx.rect(xc - y, yc - x, y<<1, 1);    // upper 1/4
+				ctx.rect(xc - x, yc - y, x<<1, 1);    // upper 2/4
+				ctx.rect(xc - x, yc + y, x<<1, 1);    // lower 3/4
+				ctx.rect(xc - y, yc + x, y<<1, 1);    // lower 4/4
+			}
+		}
+
+
+	//
+		function generateRandomInteger(min, max) {
+			return Math.floor(min + Math.random()*(max - min + 1))
+		}
+
+
+	// window resize
+		window.addEventListener('resize', function(){
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.render(scene, camera);
+		}, false)
+
+	// zoom
+		window.addEventListener( 'wheel', onMouseWheel, false );
+
+		function onMouseWheel( event ) {
+
+			camera.position.z = camera.position.y -= event.deltaY * 0.05;
+			if (camera.position.y<20) {camera.position.y=20; camera.position.z=20;}
+	    // prevent scrolling beyond a min/max value
+			camera.position.clampScalar( 0, 250 );
+		}
+
+
+
+	// initialise 3D scene
+		function init3D() {
+			window.scene = new THREE.Scene();
+			window.camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 2000 );
+
+			window.renderer = new THREE.WebGLRenderer({antialias:true, transparent:true, alpha:true});
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.domElement.id = 'threecnv';
+			renderer.shadowMap.enabled = true;
+			renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+			document.body.appendChild( renderer.domElement );
+
+			camera.position.z = 50;
+			camera.position.y = 50;
+			camera.lookAt(0,0,0)
+
+			scenegroup = new THREE.Group();
+			scene.add( scenegroup );
+
+			player = new THREE.Group();
+			player.rotation.set(0,Math.PI,0)
+			scene.add( player );
+
+		// lights
+			globalLight = new THREE.AmbientLight(0xeeeeee, 0.7);
+			shadowLight = new THREE.DirectionalLight(0xffffff, 0.6);
+			shadowLight.position.set( 0, 50, 0 );
+			shadowLight.castShadow = true;
+			player.add(globalLight);
+			player.add(shadowLight);
+
+			// 
+			shadowLight.shadow.mapSize.width = 32; 
+			shadowLight.shadow.mapSize.height = 32; 
+			shadowLight.shadow.camera.near = 0.5; 
+			shadowLight.shadow.camera.far = 500; 
+
+		}
+
+
+
+
+	// ground circle
+		function createground() {		
+		// colour ground plane
+			var texgeometry = new THREE.PlaneGeometry( 512, 512, 512, 512 );
+			var texmaterial = new THREE.MeshStandardMaterial({  
+			// color:0xff0000,
+				map : new THREE.CanvasTexture(colcanvas),
+				metalness: 0.2,
+			// roughness: 30,
+				displacementMap: new THREE.TextureLoader().load( 'level3D.png' ),
+				displacementScale: 20
+			});
+			colplane = new THREE.Mesh( texgeometry, texmaterial );
+			colplane.material.map.magFilter = THREE.NearestFilter;
+			colplane.material.map.minFilter = THREE.NearestFilter;
+	        colplane.castShadow = true;
+	        colplane.receiveShadow = true;
+			colplane.position.y = -10;
+		// colplane.position.z = 0.1;
+			colplane.rotation.set(-Math.PI/2,0,0);
+			scene.add( colplane );
+			colplane.updated = 0;
+		//
+
+		// // home grid
+		// var size = 50;
+		// var divisions = 1;
+		// var grid = new THREE.GridHelper( size, divisions );
+		// grid.position.y = 0.2;
+		// // grid.position.z = -5.3;
+		// scene.add( grid );
+		// colour ground plane
+			var worldgeometry = new THREE.PlaneGeometry( 8000, 8000 );
+			var worldmaterial = new THREE.MeshStandardMaterial({  
+				color:0xff0000
+			});
+			var worldplane = new THREE.Mesh( worldgeometry, worldmaterial );
+			worldplane.rotation.set(-Math.PI/2,0,0);
+			worldplane.position.set(0,-3,0);
+			scene.add( worldplane );
+
+
+		}
+
+
+	// create player/cursor/target
+		function createplayer() {
+		// 3D cursor
+			cursor = new THREE.Group();
+			scene.add( cursor );
+
+		// 3D player object
+			var geometry = new THREE.BoxGeometry( 5, 5, 5 );
+			var material = new THREE.MeshBasicMaterial( { color: 0xffffff, 
+				wireframe:true
+			} );
+		// cube = new THREE.Mesh( geometry, material );
+		// cube.position.x = cursor.position.x;
+		// cube.position.y = 2.5;
+		// player.add( cube );
+
+
+			pgeometry = new THREE.SphereGeometry( 3, 12, 12 );
+			pmaterial = new THREE.MeshStandardMaterial({
+				color: 0xee0000, 
+			});
+			head = new THREE.Mesh(pgeometry, pmaterial);
+			head.position.set(0,10,0)
+			head.castShadow = true;
+			player.add( head );  
+
+		// triangle [direction arrow]
+			var trigeometry = new THREE.CircleGeometry( 1, 3 );
+			var tmaterial = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
+			tri = new THREE.Mesh( trigeometry, tmaterial );
+			tri.rotation.set(-Math.PI/2,0,-Math.PI/6)
+			tri.position.z = -5;
+			tri.position.y = 1;
+			player.add( tri );
+
+		// target
+			targetobj = new THREE.Group();
+			targetobj.position.y = 1;
+			cursor.add( targetobj );
+		}
+
+
+
+
+	// map check
+		function updateloop() {
+
+		// if (!HERO.moving) {return}
+
+		// player movement lerp
+			player.position.x += (cursor.position.x - player.position.x)*0.3;
+			player.position.z += (cursor.position.z - player.position.z)*0.3;
+
+		// keys
+			if (HERO.allowmove) {
+			// keys
+				if (keyboard.isDown(keyboard.LEFT) ){
+					cursor.position.x -= HERO.maxSpeed;
+					player.lookAt(targetobj.position.x,0,targetobj.position.z);
+				}
+				if (keyboard.isDown(keyboard.RIGHT) ){
+					cursor.position.x += HERO.maxSpeed;
+					player.lookAt(targetobj.position.x,0,targetobj.position.z);
+				}
+				if (keyboard.isDown(keyboard.UP) ){
+					cursor.position.z -= HERO.maxSpeed;
+					player.lookAt(targetobj.position.x,0,targetobj.position.z);
+				}
+				if (keyboard.isDown(keyboard.DOWN) ){
+					cursor.position.z += HERO.maxSpeed;
+					player.lookAt(targetobj.position.x,0,targetobj.position.z);
+				}
+		}// keys
+
+		// collisions
+		// check colour under player
+		xu = (hitcanvas.width/2)+Math.floor( cursor.position.x);
+		xv = (hitcanvas.width/2)+Math.floor( cursor.position.z);
+		xdata = htx.getImageData(xu, xv, 1, 1); // white/walls
+		
+
+		// move player
+		if (xdata.data[0]>254) {
+			cursor.position.x = HERO.posx;
+			cursor.position.z = HERO.posz;
+			HERO.allowmove = false;
+		} else {
+			HERO.posx = cursor.position.x; 
+			HERO.posz = cursor.position.z; 
+			HERO.allowmove = true;
+
+			// draw cursor
+			ttx.drawImage(img2, 0, 0);
+			ttx.fillStyle = "rgba(100, 100, 100, 1)";
+			ttx.beginPath();
+			aliasedCircle(ttx, xu-2, xv-2, 4);
+			ttx.fill();
+
+			// ttx.fillRect(xu, xv, 1, 1);   
+			// ttx.fillRect(xu-2, xv-2, 4, 4);   
+			// colplane.material.map.needsUpdate = true;
+
+
+		}// end move player
+
+
+		// stop at white
+		if (xdata.data[0] > 254) {return}
+
+		// move 3D scene with player
+			scene.position.x = -player.position.x;
+		scene.position.z = -player.position.z;
+
+		// moving allowed
+		if (HERO.moving) {
+			cursor.position.x += HERO.vx;
+			cursor.position.z += HERO.vy;
+		} // if moving
+
+		// // read greys
+		// if (xdata.data[0] === 0) {
+		// 	xvar.innerHTML = ' ';
+		// }
+
+		// // check cursor colour
+		// if (xdata.data[0] != 0) { 
+		// 	xvar.innerHTML = xdata.data[0];
+		// } 
+
+		// // move 3D tree on hover
+		// if (xdata.data[0] > 0 ) {
+		// 	trees[xdata.data[0]].position.y = 40;
+		// } else {
+		// 	for(var i = 0; i < trees.length; i++) {
+		// 		trees[i].position.y = 0;
+		// 	}
+		// }
+
+
+		// select item
+		if (HERO.xdata != xdata.data[0]) {
+			xvar.innerHTML = xdata.data[0];
+			if (xdata.data[0]>99) {
+				xvar.innerHTML = npcArray[xdata.data[0]-100].name;
+				// npcArray[xdata.data[0]-100].position.y = 5;
+			} else {
+				// xswitch = false;
+				// once();
+			}			
+		}
+
+		HERO.xdata = xdata.data[0];
+
+
+
+	} // end mapcheck
+
+	function updatelevel() {
+		ttx.drawImage(img2, 0, 0);
+		htx.drawImage(img1, 0, 0);
+		for(var i = 0; i < npcArray.length; i++) {
+			npcArray[i].position.z += npcArray[i].speed;
+			xu = 256+Math.floor(npcArray[i].position.x);
+			xv = 256+Math.floor(npcArray[i].position.z);
+			htx.fillStyle = "rgba(100, 100, 100, 1)";
+			htx.beginPath();
+			aliasedCircle(htx, xu, xv, Math.floor(npcArray[i].setscale*10));
+			htx.fill();
+			ttx.fillStyle = "rgba(163, 123, 25, 1)";
+			ttx.beginPath();
+			aliasedCircle(ttx, xu, xv, Math.floor(npcArray[i].setscale*10));
+			ttx.fill();
+			if (npcArray[i].position.z>256) {
+				npcArray[i].position.z=-256;
+				npcArray[i].position.x=generateRandomInteger(-240, 240);
+			}
+		}
+		colplane.material.map.needsUpdate = true;
+	}
+
+	// animation loop
+	function animate() {
+		requestAnimationFrame( animate );
+		renderer.render( scene, camera );
+		updateloop();
+		// updatelevel()
+	};
+
+
+	// START <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	init3D();
+	createground();
+	createplayer();
+	animate();
+
+
+	// nipple.js
+	const nipple = nipplejs.create({
+		mode: 'dynamic',
+		dataOnly:true,
+		zone: document.getElementById('threecnv'),
+	});
+
+	// start
+	nipple.on("move", (e, data) => {
+		const vx = data.force * Math.cos(data.angle.radian);
+		const vy = -data.force * Math.sin(data.angle.radian);
+		const v = speedLimit(vx, vy, HERO.maxSpeed);
+		HERO.vx = v.vx;
+		HERO.vy = v.vy;
+		HERO.moving = true;
+		player.lookAt(targetobj.position.x,0,targetobj.position.z);
+		HERO.rotation = Math.atan2(HERO.vy, HERO.vx) + Math.PI * 0.5;
+		player.rotation.y = -HERO.rotation;
+	});
+
+	// end
+	nipple.on("end", (e, data) => {
+		HERO.moving = false;
+	});
+
+	
+	//
+	function createbaseNPC() {
+		material = new THREE.MeshBasicMaterial( { 
+			color: 0xfff000,
+			side: THREE.DoubleSide,
+		} );
+		var geometry = new THREE.SphereGeometry(5, 24, 8);
+		// var geometry = new THREE.SphereGeometry(4, 24, 8, 0, 2*Math.PI, 0, Math.PI/2);
+		sphere = new THREE.Mesh( geometry, material );
+	}
+
+	//
+	function makeNPC(x,y,z,s) {
+		material = new THREE.MeshBasicMaterial( { 
+			color: 0xfff000,
+			side: THREE.BackSide,
+			transparent:true,
+			opacity:0.4
+		} );
+		var geometry = new THREE.SphereGeometry(5, 24, 8);
+		// var geometry = new THREE.SphereGeometry(4, 24, 8, 0, 2*Math.PI, 0, Math.PI/2);
+		var npcclone = new THREE.Mesh( geometry, material );
+
+		// var npcclone = sphere.clone();
+		npcclone.scale.set( s*2, s*2, s*2 );
+		npcclone.position.set(x,y,z);
+		scenegroup.add( npcclone );
+		npcclone.setscale = s;
+		npcclone.speed = Math.random()/2;
+		npcclone.name = "NPC-"+npcArray.length;
+		npcclone.colval = 100+npcArray.length;
+
+		// 2D
+		// colval = 100+npcArray.length;
+		xu = 256+Math.floor(x);
+		xv = 256+Math.floor(z);
+		htx.fillStyle = "rgba("+npcclone.colval+", "+npcclone.colval+", "+npcclone.colval+", 1)";
+		htx.beginPath();
+		aliasedCircle(htx, xu, xv, Math.floor(s*10));
+		htx.fill();
+		ttx.fillStyle = "rgba(163, 123, 25, 0.2)";
+		ttx.beginPath();
+		// aliasedCircle(ttx, xu, xv, Math.floor(s*10));
+		ttx.arc(xu, xv, Math.floor(s*10), 0, Math.PI*2);
+		// drawCircle(c);
+		ttx.fill();
+		colplane.material.map.needsUpdate = true;
+		npcArray.push(npcclone)
+	}
+
+
+
+// draw it and colour it 
+	function drawCircle(c) {
+
+		if (c.r<=max*0.8) {ttx.fillStyle = '#111';}
+		if (c.r<=max*0.6) {ttx.fillStyle = '#222';}
+		if (c.r<=max*0.4) {ttx.fillStyle = '#333';}
+		if (c.r<=max*0.2) {ttx.fillStyle = '#444';}
+
+		ttx.beginPath();
+		ttx.arc(c.x, c.y, c.r, 0, Math.PI*2);
+		ttx.fill();
+	}
+</script>
+
+
+
+</script>
+
+
+</body>
+</html>
