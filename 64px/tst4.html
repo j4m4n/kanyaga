@@ -1,409 +1,1238 @@
-<DOCTYPE html>
-  <html>
-    <head>
-      <title>dunes</title>
-      <style type="text/css">
-        * {
-          margin: 0;
-          padding: 0;
-        }
-        body {
-          margin: 0;
-          background: #1a1a1b;
-          overflow: hidden;
-          cursor: crosshair;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          font-family: monospace;
-          color: #eee;
-          user-select: none;
-        }
-        canvas {
-          image-rendering: crisp-edges;
-          image-rendering: pixelated;
-          transform: scale(6);
-        }
-        #lvlbump {
-          position: absolute;
-          z-index: 10;
-          top: 4px;
-          right: 4px;
-          transform: scale(0.2);
-          transform-origin: top right;
-        }
-        #hud {
-          position: absolute;
-          top: 0;
-          left: 0;
-          padding: 8px;
-          font-size: 16px;
-          line-height: 20px;
-        }
-        .hide {
-          display: none;
-        }
-        #overlay {
-          display: block;
-          position: absolute;
-          top: 0;
-          left: 0;
-          bottom: 0;
-          right: 0;
-          width: 100%;
-          height: 100%;
-          /* background-color: red; */
-          z-index: 9;
-        }
-      </style>
+<!DOCTYPE html>
+<head>
+        <title>dunes</title>
+        <style type="text/css">
+            * {
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                margin: 0;
+                background: #1a1a1b;
+                overflow: hidden;
+                cursor: crosshair;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                font-family: monospace;
+                color: #eee;
+                user-select: none;
+            }
+            canvas {
+                position: fixed;
+                image-rendering: crisp-edges;
+                image-rendering: pixelated;
+                transform: scale(6);
+            }
+            #cnv {
+                position: absolute;
+                z-index: -1;
+            }
+            .minigame-canvas {
+                z-index: 30;
+                background: #222;
+            }
+            #noisetex {
+                background: #222;
+                z-index: 40;
+            }
+            #lvlbump,
+            #lvlbump-debug {
+                position: absolute;
+                z-index: 10;
+                top: 4px;
+                right: 4px;
+                transform: scale(0.2);
+                transform-origin: top right;
+            }
+            #hud {
+                position: absolute;
+                top: 0;
+                left: 0;
+                padding: 8px;
+                font-size: 16px;
+                line-height: 20px;
+            }
+            .hide {
+                display: none;
+            }
+            #overlay {
+                display: block;
+                position: absolute;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                right: 0;
+                width: 100%;
+                height: 100%;
+                /* background-color: red; */
+                z-index: 90;
+            }
+            #debug {
+                display: block;
+                /*          flex-direction: column;*/
+                /*          gap: 8px;*/
+                position: fixed;
+                z-index: 9999;
+                right: 0;
+                bottom: 0;
+                background: white;
+                color: #222;
+                padding: 8px;
+            }
+
+            #lvlbump-debug {
+                position: absolute;
+                z-index: 999;
+            }
+            #hitcnv {
+                position: absolute;
+                left: 0;
+                bottom: 0;
+                background-color: red;
+                transform: scale(0.4);
+                transform-origin: bottom left;
+            }
+        </style>
     </head>
     <body>
-      <div id="hud">
-        <div>x:<span id="xvar">1</span></div>
-        <div>z:<span id="zvar">2</span></div>
-        <div><span id="txt"></span></div>
-      </div>
+        <script type="text/javascript">
+            let house_model_state = JSON.parse(
+                `{"name":"25.08.01 20:24 - ","objs":{"6aRmjWqRjW4B6TKCBPUfj":{"id":"6aRmjWqRjW4B6TKCBPUfj","position":{"x":0,"y":5,"z":0},"rotation":{"x":0,"y":0,"z":0},"scale":{"x":10,"y":10,"z":10},"type":"cube"},"cO9tMVGs68QgncWjxHtXj":{"id":"cO9tMVGs68QgncWjxHtXj","position":{"x":-3.2,"y":11,"z":0},"rotation":{"x":0,"y":0,"z":0.8},"scale":{"x":10.3,"y":1.2,"z":11},"type":"cube","matId":"cb3mNmWdMsRTItyXIuoAM"},"8R6LMS6CbaS-92l5ymf8v":{"id":"8R6LMS6CbaS-92l5ymf8v","position":{"x":3.2,"y":11,"z":0},"rotation":{"x":0,"y":0,"z":-0.8},"scale":{"x":10.3,"y":1.2,"z":11},"type":"cube","matId":"cb3mNmWdMsRTItyXIuoAM"},"door":{"id":"door","position":{"x":0,"y":2.5,"z":5},"rotation":{"x":0,"y":0,"z":0},"scale":{"x":4,"y":5,"z":1},"type":"cube","matId":"cb3mNmWdMsRTItyXIuoAM"},"C2vFQaZKr2HnUgDGf-o3u":{"id":"C2vFQaZKr2HnUgDGf-o3u","position":{"x":0,"y":8.5,"z":0},"rotation":{"x":0,"y":0,"z":0.78},"scale":{"x":7,"y":7,"z":10},"type":"cube"},"pXKrf-e8Og_gK89VaUHxt":{"id":"pXKrf-e8Og_gK89VaUHxt","position":{"x":0,"y":2.5,"z":4.8},"rotation":{"x":0,"y":0,"z":0},"scale":{"x":4,"y":5,"z":1},"type":"cube","matId":"Vfsm--9ndVRZyhlNXB9V4"}},"materials":{"default":{"id":"default","color":16764108,"name":"default"},"cb3mNmWdMsRTItyXIuoAM":{"id":"cb3mNmWdMsRTItyXIuoAM","color":6693376,"name":"cb3m"},"Vfsm--9ndVRZyhlNXB9V4":{"id":"Vfsm--9ndVRZyhlNXB9V4","color":0,"name":"Vfsm"}}}`,
+            );
+        </script>
 
-      <div id="overlay"></div>
+        <script>
+            class GoldSmashMinigame {
+                constructor(canvas, onQuit) {
+                    this.canvas = canvas;
+                    this.onQuit = onQuit;
 
-      <script src="js/three.min.js"></script>
-      <script src="js/nipplejs.js"></script>
+                    this.scene = new THREE.Scene();
+                    this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+                    this.camera.position.z = 6;
 
-      <script type="text/javascript">
-        var camypos = 0;
-        var player = {
-          x: 0,
-          z: 0,
-          xlerp: 0,
-          zlerp: 0,
-          vx: 0,
-          vy: 0,
-          xu:0,
-          xv:0,
-          rotation: 0,
-          maxSpeed: 0.4,
-          moving: false,
-          landing: true,
-        };
+                    this.renderer = new THREE.WebGLRenderer({
+                        alpha: true,
+                        antialias: false,
+                        canvas,
+                    });
+                    this.renderer.setPixelRatio(64 / 64);
+                    this.renderer.setSize(64, 64);
 
-        // nipple.js
-        const nipple = nipplejs.create({
-          dataOnly: true,
-          // zone: document.body,
-          zone: document.getElementById("overlay"),
-        });
+                    this.hero = new THREE.Group();
+                    this.scene.add(this.hero);
 
-        // speed limiter
-        function speedLimit(vx, vy, speedLimit) {
-          const hyp = Math.hypot(vx, vy);
-          if (hyp === 0) return { vx: 0, vy: 0 };
-          const maxSpeed = Math.min(hyp, speedLimit);
-          const ratio = maxSpeed / hyp;
-          return {
-            vx: ratio * vx,
-            vy: ratio * vy,
-          };
-        }
+                    var geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+                    var material = new THREE.MeshBasicMaterial({});
+                    this.ship = new THREE.Mesh(geometry, material);
+                    this.ship.position.z = 1;
+                    this.scene.add(this.ship);
 
-        // // start
-        nipple.on("move", (e, data) => {
-          // console.log(data)
-          const vx = data.force * Math.cos(data.angle.radian);
-          const vy = -data.force * Math.sin(data.angle.radian);
-          const v = speedLimit(vx, vy, player.maxSpeed);
-          player.vx = v.vx;
-          player.vy = v.vy;
-          // player.force = data.distance/25;
-          //
-          player.moving = true;
-        });
+                    this.cubes = [];
+                    for (let x = 0; x < 4; x++) {
+                        for (let y = 0; y < 4; y++) {
+                            let g = new THREE.SphereGeometry();
+                            let m = new THREE.MeshBasicMaterial({
+                                color: new THREE.Color(0xffff00),
+                            });
+                            let mesh = new THREE.Mesh(g, m);
+                            this.scene.add(mesh);
+                            mesh.position.x = (x - 2) * 2 + 1;
+                            mesh.position.y = (y - 2) * 2 + 1;
+                            this.cubes.push(mesh);
+                        }
+                    }
 
-        // end
-        nipple.on("end", (e, data) => {
-          player.moving = false;
-          player.vx = 0;
-          player.vy = 0;
-        });
+                    this.particles = [];
+                    this.explodeParticles = (position) => {
+                        let g = new THREE.SphereGeometry(0.1, 6, 4); // low poly sphere
 
-        keyboard = {
-          _pressed: {},
+                        // Comment this next line out for strictly yellow particles
+                        //m = new THREE.MeshBasicMaterial({ color: new THREE.Color(Math.random() * 0xffffff) });
 
-          LEFT: 37,
-          UP: 38,
-          RIGHT: 39,
-          DOWN: 40,
+                        let amount = 500;
+                        for (let i = 0; i < amount; i++) {
+                            let m = new THREE.MeshBasicMaterial({
+                                color: new THREE.Color(
+                                    0xffff00 + 250 * Math.random(),
+                                ),
+                            });
+                            let mesh = new THREE.Mesh(g, m);
+                            //mesh.scale.multiplyScalar(0.1);
+                            this.scene.add(mesh);
+                            mesh.position.copy(position);
+                            this.particles.push({
+                                mesh,
+                                birthTime: time,
+                                direction: new THREE.Vector3(
+                                    Math.random() - 0.5,
+                                    Math.random() - 0.5,
+                                    Math.random() - 0.5,
+                                ),
+                            });
+                        }
+                    };
 
-          isDown: function (keyCode) {
-            player.moving = true;
-            return this._pressed[keyCode];
-          },
+                    let particleSpeed = 0.5;
+                    this.updateParticles = () => {
+                        for (let i = 0; i < this.particles.length; i++) {
+                            let particle = this.particles[i];
+                            particle.mesh.position.add(
+                                particle.direction
+                                    .clone()
+                                    .multiplyScalar(particleSpeed),
+                            );
 
-          onKeydown: function (event) {
-            this._pressed[event.keyCode] = true;
-          },
+                            if (time - particle.birthTime > 1000) {
+                                particle.dead = true;
+                                this.scene.remove(particle.mesh);
+                            }
+                        }
+                        this.particles = this.particles.filter((p) => !p.dead);
+                    };
 
-          onKeyup: function (event) {
-            player.moving = false;
-            delete this._pressed[event.keyCode];
-          },
-        };
+                    this.smash = () => {
+                        let getDistance = (a, b) =>
+                            Math.abs(a.position.x - b.position.x) +
+                            Math.abs(a.position.y - b.position.y);
+                        let removedCubes = [];
+                        let smashedCubes = this.cubes.find((c) => {
+                            let dist = getDistance(this.ship, c);
+                            if (dist < 1) {
+                                this.scene.remove(c);
+                                removedCubes.push(c);
+                                this.explodeParticles(c.position);
+                            }
+                        });
+                        this.cubes = this.cubes.filter(
+                            (c) => !removedCubes.includes(c),
+                        );
+                    };
+                    // end of constructor
+                }
 
-        // KEYBOARD
-        window.addEventListener(
-          "keyup",
-          function (event) {
-            keyboard.onKeyup(event);
-          },
-          false
-        );
-        window.addEventListener(
-          "keydown",
-          function (event) {
-            keyboard.onKeydown(event);
-          },
-          false
-        );
+                update(time, keyboard) {
+                    if (this.cubes.length == 0) {
+                        this.onQuit();
+                        return;
+                    }
 
-        function init() {
-          // lvlbump
-          lvlbump = document.createElement("canvas");
-          stx = lvlbump.getContext("2d");
-          // 2048 x 3590
-          // 1024 x 1795 = *1.7529296875
-          lvlbump.width = 1024;
-          lvlbump.height = 1024;
-          lvlbump.id = "lvlbump";
-          // document.body.appendChild(lvlbump);
+                    let hero = this.hero;
+                    let ship = this.ship;
+                    let player = { speed: 0.5 };
 
-          olimg = new Image();
-          olimg.src = "assets/bump.jpg";
+                    if (keyboard.isDown(keyboard.UP) && hero.position.y < 3) {
+                        hero.position.y += player.speed;
+                    }
+                    if (
+                        keyboard.isDown(keyboard.DOWN) &&
+                        hero.position.y > -3
+                    ) {
+                        hero.position.y -= player.speed;
+                    }
+                    if (
+                        keyboard.isDown(keyboard.LEFT) &&
+                        hero.position.x > -3
+                    ) {
+                        hero.position.x -= player.speed;
+                    }
+                    if (
+                        keyboard.isDown(keyboard.RIGHT) &&
+                        hero.position.x < 3
+                    ) {
+                        hero.position.x += player.speed;
+                    }
 
-          olimg.onload = () => {
-            stx.drawImage(olimg, 0, 0);
+                    //if (keyboard.isDown(keyboard.SPACE)) {
+                    // Activate smashing mode
+                    ship.material.color = new THREE.Color(0xffffff);
+                    this.smash();
+                    //} else {
+                    //    // Non-smashing mode
+                    //    ship.material.color = new THREE.Color(0x00FF00);
+                    //}
 
-            initScene();
-            initGround();
-            animate();
-          };
-        }
+                    // ship lerp position
+                    ship.position.x +=
+                        (hero.position.x - ship.position.x) * 0.2;
+                    ship.position.y +=
+                        (hero.position.y - ship.position.y) * 0.2;
 
-        //
-        function initScene() {
-          // threejs
-          scene = new THREE.Scene();
-          camera = new THREE.PerspectiveCamera(
-            72,
-            window.innerWidth / window.innerHeight,
-            0.1,
-            1000
-          );
-          renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-          renderer.setSize(window.innerWidth, window.innerHeight);
-          document.body.appendChild(renderer.domElement);
-          renderer.domElement.id = "cnv";
-          renderer.shadowMap.enabled = true;
-          renderer.setPixelRatio(window.devicePixelRatio);
-          renderer.setSize(64, 64);
+                    ship.lookAt(hero.position);
+                    this.updateParticles();
+
+                    this.renderer.render(this.scene, this.camera);
+                }
+            }
+        </script>
+
+        <script>
+            let minigameDataMap = {
+                0: { name: "goldsmash", handlerClass: GoldSmashMinigame },
+            };
+        </script>
+
+        <!-- CrappyObject handling -->
+        <script type="text/javascript">
+            class CrappyObjectInstance {
+                instances = {};
+                materialInstances = {};
+
+                constructor(state) {
+                    this.root = new THREE.Group();
+                    this.state = state;
+                    this.instantiate();
+                }
+
+                instantiate() {
+                    Object.values(this.instances).forEach((inst) =>
+                        inst.parent.remove(inst),
+                    );
+                    this.instances = {};
+                    this.materialInstances = {};
+                    Object.values(this.state.objs).forEach((obj) =>
+                        this.instantiateObject(obj),
+                    );
+                }
+
+                getMatInstance(id) {
+                    if (!id) id = "default";
+                    const mat = this.state.materials[id];
+
+                    if (!this.materialInstances[id])
+                        this.materialInstances[id] =
+                            new THREE.MeshBasicMaterial({ color: mat.color });
+                    //if (!this.materialInstances[id]) this.materialInstances[id]= new THREE.MeshStandardMaterial({ color: mat.color });
+                    return this.materialInstances[id];
+                }
+
+                instantiateObject(obj) {
+                    let g = this.getGeometryForType(obj.type);
+                    let mat = this.getMatInstance(obj.matId);
+                    let mesh = new THREE.Mesh(g, mat);
+
+                    mesh.position.copy(
+                        new THREE.Vector3(
+                            obj.position.x,
+                            obj.position.y,
+                            obj.position.z,
+                        ),
+                    );
+                    mesh.rotation.copy(
+                        new THREE.Euler(
+                            obj.rotation.x,
+                            obj.rotation.y,
+                            obj.rotation.z,
+                        ),
+                    );
+                    mesh.scale.copy(
+                        new THREE.Vector3(
+                            obj.scale.x,
+                            obj.scale.y,
+                            obj.scale.z,
+                        ),
+                    );
+
+                    this.root.add(mesh);
+
+                    this.instances[obj.id] = mesh;
+                }
+
+                getGeometryForType(type) {
+                    switch (type) {
+                        case "sphere":
+                            return new THREE.SphereGeometry();
+                        case "cylinder":
+                            return new THREE.CylinderGeometry(1, 1, 1, 32);
+                        case "cone":
+                            return new THREE.CylinderGeometry(0, 1, 1, 32);
+                        default:
+                            return new THREE.BoxGeometry();
+                    }
+                }
+            }
+        </script>
+
+        <div id="hud">
+            <div>x:<span id="xvar">0</span></div>
+            <div>y:<span id="yvar">0</span></div>
+            <div>z:<span id="zvar">0</span></div>
+        </div>
+
+        <div id="overlay"></div>
+
+        <script src="js/three.min.js"></script>
+        <script src="js/nipplejs.js"></script>
+
+        <!-- main code start -->
+        <script type="text/javascript">
+            var camypos = 0;
+            var player = {
+                width: 128,
+                size: 32,
+                count: 4,
+                fps: 16,
+                x: 0,
+                z: 0,
+                xlerp: 0,
+                zlerp: 0,
+                vx: 0,
+                vy: 0,
+                xu: 0,
+                xv: 0,
+                rotation: 0,
+                maxSpeed: 0.4,
+                moving: false,
+                jactive: false,
+                allowmove:true
+            };
+
+            // nipple.js
+            const nipple = nipplejs.create({
+                dataOnly: true,
+                // zone: document.body,
+                zone: document.getElementById("overlay"),
+            });
+
+            // speed limiter
+            function speedLimit(vx, vy, speedLimit) {
+                const hyp = Math.hypot(vx, vy);
+                if (hyp === 0) return { vx: 0, vy: 0 };
+                const maxSpeed = Math.min(hyp, speedLimit);
+                const ratio = maxSpeed / hyp;
+                return {
+                    vx: ratio * vx,
+                    vy: ratio * vy,
+                };
+            }
+
+            // // start
+            nipple.on("move", (e, data) => {
+                // console.log(data)
+                const vx = data.force * Math.cos(data.angle.radian);
+                const vy = -data.force * Math.sin(data.angle.radian);
+                const v = speedLimit(vx, vy, player.maxSpeed);
+                player.vx = v.vx;
+                player.vy = v.vy;
+                // player.force = data.distance/25;
+                //
+                player.jactive = true;
+            });
+
+            // end
+            nipple.on("end", (e, data) => {
+                player.jactive = false;
+                player.vx = 0;
+                player.vy = 0;
+            });
+
+            keyboard = {
+                _pressed: {},
+
+                LEFT: 37,
+                UP: 38,
+                RIGHT: 39,
+                DOWN: 40,
+                SPACE: 32,
+
+                isDown: function (keyCode) {
+                    return this._pressed[keyCode];
+                },
+
+                onKeydown: function (event) {
+                    this._pressed[event.keyCode] = true;
+                },
+
+                onKeyup: function (event) {
+                    delete this._pressed[event.keyCode];
+                },
+            };
+
+            // KEYBOARD
+            window.addEventListener(
+                "keyup",
+                function (event) {
+                    keyboard.onKeyup(event);
+                },
+                false,
+            );
+            window.addEventListener(
+                "keydown",
+                function (event) {
+                    keyboard.onKeydown(event);
+                },
+                false,
+            );
 
 
-          camera.aspect = 1 / 1;
-          camera.position.set(0, 50, 150);
-          camera.updateProjectionMatrix();
-
-          // light
-          globalLight = new THREE.AmbientLight(0xffffff, 0.4);
-          scene.add(globalLight);
-          createLights();
-
-          // fog
-          scene.fog = new THREE.FogExp2(0x000000, 0.0015);
-
-          // 3D house
-          housearray = [];
-          house = new THREE.Group();
-          scene.add(house);
-
-          // house marker
-          var housegeometry = new THREE.BoxBufferGeometry(2, 30, 2);
-          var bmaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-          var housebox = new THREE.Mesh(housegeometry, bmaterial);
-          housebox.position.y = 25 + 20;
-          house.add(housebox);
-          housearray.push(housebox);
-          // beacon
-          var lightgeometry = new THREE.BoxBufferGeometry(9, 9, 9);
-          var lightbox = new THREE.Mesh(
-            lightgeometry,
-            new THREE.MeshBasicMaterial({ color: 0xffffff })
-          );
-          lightbox.position.y = 42 + 20;
-          house.add(lightbox);
-          housearray.push(lightbox);
-
-          // hero group
-          hero = new THREE.Group();
-          scene.add(hero);
-          camera.lookAt(hero.position);
-
-          // cube
-          const boxgeometry = new THREE.BoxGeometry(20, 20, 20);
-          const boxmaterial = new THREE.MeshLambertMaterial({
-            color: 0x00ff00,
-          });
-          const cube = new THREE.Mesh(boxgeometry, boxmaterial);
-          cube.receiveShadow = true;
-          cube.castShadow = true;
-          cube.rotation.set(0, -Math.PI / 2, 0);
-          cube.position.y = 0;
-          hero.add(cube);
-
-        }
-
-        //
-        function initGround() {
-          // groundplane
-          var geometry = new THREE.PlaneBufferGeometry(
-            2048,
-            2048,
-            300,
-            300
-          );
-          var material = new THREE.MeshStandardMaterial({
-            displacementMap: new THREE.TextureLoader().load(
-              "assets/bump.jpg"
-            ),
-            displacementScale: 100,
-            map: new THREE.TextureLoader().load("assets/col.jpg"),
-            metalness: 0,
-            roughness: 20,
-          });
-          material.map.magFilter = THREE.NearestFilter;
-          material.map.minFilter = THREE.NearestFilter;
-
-          groundplane = new THREE.Mesh(geometry, material);
-          groundplane.name = "groundplane";
-          groundplane.position.set(0, -360, 0);
-          groundplane.rotation.x = -Math.PI / 2;
-          groundplane.receiveShadow = true;
-          groundplane.castShadow = true;
-          groundplane.scale.set(4, 4, 4);
-          scene.add(groundplane);
-          housearray.push(groundplane);
-
-          //
-          var watermaterial = new THREE.MeshBasicMaterial({
-            color: 0x1111ff,
-            transparent: true,
-            opacity: 0.3,
-          });
-          waterplane = new THREE.Mesh(geometry, watermaterial);
-          waterplane.receiveShadow = true;
-          waterplane.castShadow = true;
-          waterplane.rotation.x = -Math.PI / 2;
-          waterplane.position.set(0, -290, 0);
-          scene.add(waterplane);
-        }
-
-        // player movement update
-        function playerupdate() {
-          if (keyboard.isDown(keyboard.LEFT)) {
-            player.x -= player.maxSpeed;
-          }
-          if (keyboard.isDown(keyboard.RIGHT)) {
-            player.x += player.maxSpeed;
-          }
-          if (keyboard.isDown(keyboard.UP)) {
-            player.z -= player.maxSpeed;
-          }
-          if (keyboard.isDown(keyboard.DOWN)) {
-            player.z += player.maxSpeed;
-          }
-
-          // lerp motion
-          player.xlerp += (player.x - player.xlerp) * 0.2;
-          player.zlerp += (player.z - player.zlerp) * 0.2;
+            function hitready(){
+              htx.drawImage(hitimg, 0, 0, 512, 512);
+              // draw();
+            }
 
 
-          // mapcheck
-          player.xu = 1024 / 2 + player.x * 2;
-          player.xv = 1024 / 2 + player.z * 2;
-          var xdata = stx.getImageData(
-            player.xu,
-            player.xv,
-            1,
-            1
-          );
+            let debugCtx, debugMap, noiseCtx, hitimg, hitcnv, htx, xdata;
 
-          // draw player position on map
-          // stx.drawImage(olimg, 0, 0);
-          // stx.fillStyle = "rgba(255, 0, 0, 1)";
-          // stx.fillRect(player.xu+12, player.xv, 10, 10);   
-          
-          // // set hero on ground
-          hero.position.y = (xdata.data[0]*2)-360;
-          camera.position.y = camypos + (hero.position.y+40);
-          camera.lookAt(hero.position);
+            function init() {
+              // img
+              hitimg = new Image();
+              hitimg.onload = hitready;
+              hitimg.src = "assets/hit.png";
 
-          // joystick movement
-          if (player.moving) {
-            player.z += player.vy;
-            player.x += player.vx;
-          }
+              // hit canvas
+              hitcnv = document.createElement("canvas");
+              htx = hitcnv.getContext("2d");
+              hitcnv.width = 512;
+              hitcnv.height = 512;
+              hitcnv.id = "hitcnv";
+              document.body.appendChild(hitcnv);
 
-          // align 3D
-          for (let i = 0, len = housearray.length; i < len; i++) {
-            housearray[i].position.x = -player.xlerp * 16 + 0.15;
-            housearray[i].position.z = -player.zlerp * 16 - 0.8;
-          } // for
 
-          // bounds
-          if (player.x > 62 * 4) {
-            player.x = 62 * 4;
-          }
-          if (player.x < -62 * 4) {
-            player.x = -62 * 4;
-          }
-          if (player.z > 62 * 4) {
-            player.z = 62 * 4;
-          }
-          if (player.z < -62 * 4) {
-            player.z = -62 * 4;
-          }
+              // lvlbump
+                lvlbump = document.createElement("canvas");
+                stx = lvlbump.getContext("2d");
+                // 2048 x 3590
+                // 1024 x 1795 = *1.7529296875
+                lvlbump.width = 1024;
+                lvlbump.height = 1024;
+                lvlbump.id = "lvlbump";
+                //document.body.appendChild(lvlbump);
+                debugMap = document.createElement("canvas");
+                debugMap.id = "lvlbump-debug";
+                debugMap.width = 1024;
+                debugMap.height = 1024;
+                document.body.appendChild(debugMap);
+                debugCtx = debugMap.getContext("2d");
 
-          // vars
-          document.getElementById("xvar").innerHTML = Math.floor(player.x);
-          document.getElementById("zvar").innerHTML = Math.floor(player.z);
-          document.getElementById("txt").innerHTML = 'y:'+xdata.data[0];
-          
-        }
+                olimg = new Image();
+                olimg.src = "assets/natron-bmp.png";
 
-        function createLights() {
-          shadowLight = new THREE.DirectionalLight(0xffffff, 1);
-          shadowLight.position.set(0, 120, 0.1);
-          shadowLight.castShadow = true;
-          shadowLight.shadow.radius = 4;
-          shadowLight.shadow.camera.left = -40;
-          shadowLight.shadow.camera.right = 40;
-          shadowLight.shadow.camera.top = 40;
-          shadowLight.shadow.camera.bottom = -40;
-          shadowLight.shadow.camera.near = 1;
-          shadowLight.shadow.camera.far = 1000;
-          shadowLight.shadow.mapSize.width =
-            shadowLight.shadow.mapSize.height = 128;
-          scene.add(shadowLight);
-        }
+                olimg.onload = () => {
+                    stx.drawImage(
+                        olimg,
+                        0,
+                        0,
+                        stx.canvas.width,
+                        stx.canvas.height,
+                    );
+                    debugCtx.drawImage(
+                        olimg,
+                        0,
+                        0,
+                        debugCtx.canvas.width,
+                        debugCtx.canvas.height,
+                    );
 
-        // loop
-        function animate() {
-          requestAnimationFrame(animate);
-          renderer.render(scene, camera);
-          playerupdate();
-        }
+                    initScene();
+                    initGround();
+                    addHouse(-60, -160, 0);
+                    animate();
+                };
 
-        // start
-        init();
-      </script>
+                const noiseCanvas = document.createElement("canvas");
+                document.body.append(noiseCanvas);
+                noiseCtx = noiseCanvas.getContext("2d");
+                noiseCanvas.id = "noisetex";
+                noiseCanvas.width = noiseCanvas.height = 64;
+            }
+
+            let houseGroup;
+
+            //
+            function initScene() {
+                // threejs
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(
+                    72,
+                    window.innerWidth / window.innerHeight,
+                    1,
+                    4000,
+                );
+                let canvas = document.createElement("canvas");
+                document.body.append(canvas);
+                canvas.width = 64;
+                canvas.height = 64;
+                renderer = new THREE.WebGLRenderer({
+                    alpha: true,
+                    antialias: true,
+                    canvas: canvas,
+                });
+                renderer.setClearColor(0x0088ff);
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                document.body.appendChild(renderer.domElement);
+                renderer.domElement.id = "cnv";
+                renderer.shadowMap.enabled = true;
+                //renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.setPixelRatio(1);
+                renderer.setSize(64, 64);
+
+                camera.aspect = 1 / 1;
+                camera.position.set(0, 50, 150);
+                camera.updateProjectionMatrix();
+
+                // light
+                globalLight = new THREE.AmbientLight(0xffffff, 0.4);
+                scene.add(globalLight);
+                createLights();
+
+                // fog
+                //scene.fog = new THREE.FogExp2(0x000000, 0.0015);
+
+                // 3D house
+                housearray = [];
+                house = new THREE.Group();
+                scene.add(house);
+
+                // house marker
+                var housegeometry = new THREE.BoxBufferGeometry(2, 30, 2);
+                var bmaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff0000,
+                });
+                var housebox = new THREE.Mesh(housegeometry, bmaterial);
+                housebox.position.y = 25 + 20;
+                house.add(housebox);
+                housearray.push(housebox);
+
+                // beacon
+                var lightgeometry = new THREE.BoxBufferGeometry(9, 9, 9);
+                var lightbox = new THREE.Mesh(
+                    lightgeometry,
+                    new THREE.MeshBasicMaterial({ color: 0xffffff }),
+                );
+                lightbox.position.y = 42 + 20;
+                house.add(lightbox);
+                housearray.push(lightbox);
+
+
+
+
+                // hero group
+                hero = new THREE.Group();
+                scene.add(hero);
+                camera.lookAt(hero.position);
+
+                // player sprite
+                // head
+                facetex = new THREE.TextureLoader().load("assets/face.png");
+                sorttexture(facetex);
+
+                const boxgeometry = new THREE.SphereGeometry(20, 20, 20);
+                const boxmaterial = new THREE.MeshLambertMaterial({
+                    // color: 0x00ff00,
+                    map: facetex,
+                });
+                const cube = new THREE.Mesh(boxgeometry, boxmaterial);
+                cube.receiveShadow = true;
+                cube.castShadow = true;
+                cube.rotation.set(0, -Math.PI / 2, 0);
+                cube.position.y = 20;
+                hero.add(cube);
+
+                // legs
+                legIdletexture = new THREE.TextureLoader().load(
+                    "assets/leg-still3.png",
+                );
+                legIdletexture.wrapT = THREE.ClampToEdgeWrapping;
+                legIdletexture.repeat.set(1, 1);
+                legRuntexture = new THREE.TextureLoader().load(
+                    "assets/leg-walk3.png",
+                );
+                legRuntexture.wrapT = THREE.RepeatWrapping;
+                legRuntexture.repeat.set(0.25, 1);
+                sorttexture(legIdletexture);
+                sorttexture(legRuntexture);
+                var bggeometry = new THREE.PlaneGeometry(30, 30);
+                bgmaterial = new THREE.MeshBasicMaterial({
+                    map: legIdletexture,
+                    transparent: true,
+                    alphaTest: 0.2,
+                });
+
+                bg = new THREE.Mesh(bggeometry, bgmaterial);
+                bg.position.set(0, -10, 0);
+                hero.add(bg);
+
+                houseGroup = new THREE.Group();
+                housearray.push(houseGroup);
+                scene.add(houseGroup);
+
+
+                // tst
+                tst = new THREE.TextureLoader().load(
+                    "assets/twiggyidle.png",
+                );
+                sorttexture(tst);
+                var tsize = 70;
+                var tgeometry = new THREE.PlaneGeometry(tsize, tsize);
+                tmaterial = new THREE.MeshBasicMaterial({
+                    map: tst,
+                    transparent: true,
+                    alphaTest: 0.2,
+                });
+
+                tstobj = new THREE.Mesh(tgeometry, tmaterial);
+                tstobj.position.set(0, -155, 130);
+                tstobj.position.y = getMapHeight({ x: tstobj.position.x, z: tstobj.position.z }, false)+(tsize/2);
+
+                houseGroup.add(tstobj);
+            }// end init
+
+            function sorttexture(argument) {
+                argument.magFilter = THREE.NearestFilter;
+                argument.minFilter = THREE.NearestFilter;
+            }
+            function getUvPosition(position) {
+                return {
+                    u: 1024 / 2 + position.x * 2,
+                    v: 1024 / 2 + position.z * 2,
+                };
+            }
+
+            function updateDebugMap() {
+                debugCtx.drawImage(
+                    olimg,
+                    0,
+                    0,
+                    debugCtx.canvas.width,
+                    debugCtx.canvas.height,
+                );
+
+                placedHouses.forEach((house) => {
+                    let uv = {
+                        u: house.root.position.x / 4096 / 2 + 0.5,
+                        v: house.root.position.z / 4096 / 2 + 0.5,
+                    };
+                    debugCtx.fillStyle = "#00ffff";
+                    debugCtx.fillRect(
+                        uv.u * debugCtx.canvas.width - 25,
+                        uv.v * debugCtx.canvas.height - 25,
+                        50,
+                        50,
+                    );
+                });
+
+                // draw player position on map
+                let uv = getUvPosition(player);
+
+                debugCtx.fillStyle = "rgba(255, 0, 0, 1)";
+                debugCtx.fillRect(uv.u - 12, uv.v - 12, 24, 24);
+            }
+
+            function getMapHeight(position, isPlayer = true) {
+                if (!isPlayer)
+                    position = {
+                        x: position.x / 16,
+                        z: position.z / 16,
+                    };
+                let uv = getUvPosition(position);
+                let samples = [
+                    stx.getImageData(uv.u, uv.v, 1, 1).data[0],
+                    //stx.getImageData(uv.u + 1, uv.v, 1, 1).data[0],
+                    //stx.getImageData(uv.u - 1, uv.v, 1, 1).data[0],
+                    //stx.getImageData(uv.u, uv.v + 1, 1, 1).data[0],
+                    //stx.getImageData(uv.u, uv.v - 1, 1, 1).data[0],
+                ];
+
+                let value =
+                    samples.reduce((sum, x) => (sum += x)) / samples.length;
+                value = -360 + 400 * (value / 255);
+
+                if (value < -300) value = -300;
+                return value;
+            }
+
+            //
+            function initGround() {
+                // groundplane
+                var geometry = new THREE.PlaneBufferGeometry(
+                    2048,
+                    2048,
+                    300,
+                    300,
+                );
+                var material = new THREE.MeshStandardMaterial({
+                    displacementMap: new THREE.TextureLoader().load(
+                        "assets/natron-bmp.png",
+                    ),
+                    displacementScale: 100,
+                    map: new THREE.TextureLoader().load(
+                        "assets/natron-col.png",
+                    ),
+                    metalness: 0,
+                    roughness: 20,
+                });
+                material.map.magFilter = THREE.NearestFilter;
+                material.map.minFilter = THREE.NearestFilter;
+
+                groundplane = new THREE.Mesh(geometry, material);
+                groundplane.name = "groundplane";
+                groundplane.position.set(0, -360, 0);
+                groundplane.rotation.x = -Math.PI / 2;
+                groundplane.receiveShadow = true;
+                groundplane.castShadow = true;
+                groundplane.scale.set(4, 4, 4);
+                scene.add(groundplane);
+                housearray.push(groundplane);
+
+                //
+                var watermaterial = new THREE.MeshBasicMaterial({
+                    color: 0x1111ff,
+                    transparent: true,
+                    opacity: 0.3,
+                });
+                waterplane = new THREE.Mesh(geometry, watermaterial);
+                waterplane.receiveShadow = true;
+                waterplane.castShadow = true;
+                waterplane.rotation.x = -Math.PI / 2;
+                waterplane.position.set(0, -290, 0);
+                scene.add(waterplane);
+            }
+
+            // player movement update
+            function playerupdate(time) {
+                // moving?
+                if (
+                    keyboard.isDown(keyboard.DOWN) ||
+                    keyboard.isDown(keyboard.UP) ||
+                    keyboard.isDown(keyboard.LEFT) ||
+                    keyboard.isDown(keyboard.RIGHT) ||
+                    player.jactive
+                ) {
+                    player.moving = true;
+                } else {
+                    player.moving = false;
+                }
+
+                // keys
+                if (keyboard.isDown(keyboard.LEFT)) {
+                    player.x -= player.maxSpeed;
+                }
+                if (keyboard.isDown(keyboard.RIGHT)) {
+                    player.x += player.maxSpeed;
+                }
+                if (keyboard.isDown(keyboard.UP)) {
+                    player.z -= player.maxSpeed;
+                }
+                if (keyboard.isDown(keyboard.DOWN)) {
+                    player.z += player.maxSpeed;
+                }
+
+                // lerp motion
+                player.xlerp += (player.x - player.xlerp) * 0.2;
+                player.zlerp += (player.z - player.zlerp) * 0.2;
+
+                updateDebugMap();
+
+                // set hero on ground
+                hero.position.y = getMapHeight(player);
+                hero.position.y += 10; //offset for cube height
+                camera.position.y = camypos + (hero.position.y + 40);
+                camera.lookAt(hero.position);
+
+                // combined movement
+                if (player.moving) {
+                    player.z += player.vy;
+                    player.x += player.vx;
+                }
+
+                // legs
+                if (player.moving) {
+                    bgmaterial.map = legRuntexture;
+                    bgmaterial.map.offset.x =
+                        (Math.floor((time * player.fps) % player.count) *
+                            player.size) /
+                        player.width;
+                } else {
+                    bgmaterial.map = legIdletexture;
+                }
+
+                // align 3D
+                for (let i = 0, len = housearray.length; i < len; i++) {
+                    housearray[i].position.x = -player.xlerp * 16 + 0.15;
+                    housearray[i].position.z = -player.zlerp * 16 - 0.8;
+                }
+
+                hitcheck(player.x, player.z)
+
+                // bounds
+                if (player.x > 62 * 4) {
+                    player.x = 62 * 4;
+                }
+                if (player.x < -62 * 4) {
+                    player.x = -62 * 4;
+                }
+                if (player.z > 62 * 4) {
+                    player.z = 62 * 4;
+                }
+                if (player.z < -62 * 4) {
+                    player.z = -62 * 4;
+                }
+
+                // vars
+                document.getElementById("xvar").innerHTML = Math.floor(
+                    player.x,
+                );
+                document.getElementById("zvar").innerHTML = Math.floor(
+                    player.z,
+                );
+                document.getElementById("yvar").innerHTML =
+                    "y:" + hero.position.y;
+            }
+
+            // collisions
+            function hitcheck(posx, posz){
+              xu = (hitcnv.width/2)+Math.floor( posx);
+              xv = (hitcnv.width/2)+Math.floor( posz);
+              // fill
+              htx.fillStyle = "blue";
+              htx.fillRect(xu+10, xv, 10, 10);
+              // check colour
+              xdata = htx.getImageData(xu, xv, 1, 1);
+
+              // move player
+		if (xdata.data[0]>254) {
+			// cursor.position.x = HERO.posx;
+			// cursor.position.z = HERO.posz;
+			player.allowmove = false;
+		} else {
+			// HERO.posx = cursor.position.x;
+			// HERO.posz = cursor.position.z;
+			player.allowmove = true;
+
+			// draw cursor
+			// ttx.drawImage(img2, 0, 0);
+			// ttx.fillStyle = "rgba(100, 100, 100, 1)";
+			// ttx.beginPath();
+			// aliasedCircle(ttx, xu-2, xv-2, 4);
+			// ttx.fill();
+
+			// ttx.fillRect(xu, xv, 1, 1);
+			// ttx.fillRect(xu-2, xv-2, 4, 4);
+			// colplane.material.map.needsUpdate = true;
+
+
+		}// end move player
+
+              // console.log(xdata.data[0])
+              // htx.drawImage(hitimg, -xu+256, -xv+256, 512, 512);
+
+            }
+
+
+            function createLights() {
+                shadowLight = new THREE.DirectionalLight(0xffffff, 0.5);
+                shadowLight.position.set(0, 120, 0.1);
+                shadowLight.castShadow = true;
+                shadowLight.shadow.radius = 4;
+                shadowLight.shadow.camera.left = -40;
+                shadowLight.shadow.camera.right = 40;
+                shadowLight.shadow.camera.top = 40;
+                shadowLight.shadow.camera.bottom = -40;
+                shadowLight.shadow.camera.near = 1;
+                shadowLight.shadow.camera.far = 1000;
+                shadowLight.shadow.mapSize.width =
+                    shadowLight.shadow.mapSize.height = 128;
+                scene.add(shadowLight);
+            }
+
+            // loop
+            let time = 0;
+            function animate() {
+                requestAnimationFrame(animate);
+                time = window.performance.now() * 0.001; // time since game start in seconds
+
+                if (activeMinigameInfo) {
+                    updateMinigame();
+                } else {
+                    renderer.render(scene, camera);
+                    playerupdate(time);
+                    checkDoors();
+                    updateDebugUi(); // RBL: remove before launch
+                }
+            }
+
+            function updateMinigame() {
+                let timeElapsed = time - activeMinigameInfo.startTime;
+                let noiseFadeTime = 1;
+
+                let noiseOpacity;
+                if (timeElapsed < noiseFadeTime) {
+                    noise(noiseCtx);
+                    noiseOpacity = 1 - timeElapsed / noiseFadeTime;
+                } else noiseOpacity = 0;
+                noiseCtx.canvas.style.opacity = noiseOpacity;
+
+                let handler = activeMinigameInfo.handler;
+                handler.update(timeElapsed, keyboard);
+            }
+
+            let doorEntranceTime = null;
+            function checkDoors() {
+                let STATIC_DIST = 70;
+                let ENTRANCE_TIME_SEC = 0.7;
+
+                let nearestDoor = null;
+                for (let i = 0; i < doorDataList.length; i++) {
+                    let doorData = doorDataList[i];
+                    let doorPos = new THREE.Vector3();
+                    doorData.obj.getWorldPosition(doorPos);
+
+                    let dist = doorPos.distanceTo(hero.position);
+
+                    if (dist < STATIC_DIST) {
+                        nearestDoor = { doorData, dist };
+                        break;
+                    }
+                    doorData.pivot.rotation.y = 0;
+                }
+
+                if (nearestDoor) {
+                    if (!doorEntranceTime) doorEntranceTime = time;
+                    noise(noiseCtx);
+
+                    let opacity = (time - doorEntranceTime) / ENTRANCE_TIME_SEC;
+                    //noiseCtx.canvas.style.opacity = opacity;
+
+                    nearestDoor.doorData.pivot.rotation.y = -1.571 * opacity;
+
+                    if (time - doorEntranceTime > ENTRANCE_TIME_SEC) {
+                        // enter the door's minigame
+                        let minigameIndex = nearestDoor.doorData.minigameIndex;
+                        startMinigame(minigameIndex);
+                        nearestDoor.doorData.obj.rotation.y = 0;
+
+                        doorEntranceTime = null;
+                    }
+                } else {
+                    noiseCtx.canvas.style.opacity = 0;
+                    doorEntranceTime = null;
+                }
+            }
+
+            let activeMinigameInfo = null;
+            function startMinigame(i) {
+                if (activeMinigameInfo) {
+                    activeMinigameInfo.canvas.remove();
+                }
+                let abort = () => {
+                    alert(
+                        `Minigame for index ${i} not found.\n\n...that means this house is haunted, RUN AWAY!`,
+                    );
+                    noiseCtx.canvas.style.opacity = 0;
+                    doorEntranceTime = null;
+                };
+                if (minigameDataMap[i] === undefined) return abort();
+
+                let minigameData = minigameDataMap[i];
+                const handlerClass = minigameData.handlerClass;
+                if (!handlerClass) return abort();
+
+                let canvas = document.createElement("canvas");
+                canvas.width = canvas.height = 64;
+                canvas.background = "green";
+                canvas.className = "minigame-canvas";
+                document.body.append(canvas);
+
+                let onQuit = () => {
+                    if (activeMinigameInfo) activeMinigameInfo.canvas.remove();
+                    activeMinigameInfo = null;
+                    player.z += 6;
+                };
+
+                activeMinigameInfo = {
+                    index: i,
+                    startTime: time,
+                    canvas,
+                    handler: new handlerClass(canvas, onQuit),
+                };
+            }
+
+            function noise(ctx) {
+                if (!ctx) return;
+                const w = ctx.canvas.width,
+                    h = ctx.canvas.height,
+                    iData = ctx.createImageData(w, h),
+                    buffer32 = new Uint32Array(iData.data.buffer),
+                    len = buffer32.length;
+                let i = 0;
+                for (; i < len; i++)
+                    if (Math.random() < 0.5) buffer32[i] = 0xffffffff;
+                ctx.putImageData(iData, 0, 0);
+            }
+
+            let placedHouses = [];
+            let debugUi = document.createElement("div");
+            debugUi.id = "debug";
+            document.body.append(debugUi);
+            let houseCountLabel;
+            function buildDebugUi() {
+                debugUi.innerHTML = "";
+                houseCountLabel = document.createElement("div");
+                debugUi.append(houseCountLabel);
+
+                let b = document.createElement("button");
+                debugUi.append(b);
+                b.innerText = "Export House Positions";
+                b.onclick = (e) => {
+                    let bg = document.createElement("div");
+                    bg.style.position = "fixed";
+                    bg.style.top = "0";
+                    bg.style.left = "0";
+                    bg.style.width = "100%";
+                    bg.style.height = "100%";
+                    bg.style.backgroundColor = "rgba(0,0,0,0.5)";
+                    bg.style.display = "flex";
+                    bg.style.zIndex = "1000000";
+                    bg.style.flexDirection = "column";
+                    bg.style.alignItems = "center";
+                    bg.style.justifyContent = "center";
+                    bg.style.gap = "12px";
+                    document.body.append(bg);
+                    let textarea = document.createElement("textarea");
+                    textarea.style.width = "50%";
+                    textarea.style.height = "50%";
+                    textarea.value = JSON.stringify(
+                        placedHouses.map((house) => {
+                            return house.root.position;
+                        }),
+                    );
+                    bg.append(textarea);
+                    let doneButton = document.createElement("button");
+                    doneButton.onclick = () => bg.remove();
+                    doneButton.innerText = "done";
+                    bg.append(doneButton);
+                };
+
+                b = document.createElement("button");
+                b.innerText = "Import House Positions";
+                debugUi.append(b);
+                b.onclick = (e) => {
+                    let bg = document.createElement("div");
+                    bg.style.position = "fixed";
+                    bg.style.top = "0";
+                    bg.style.left = "0";
+                    bg.style.width = "100%";
+                    bg.style.height = "100%";
+                    bg.style.backgroundColor = "rgba(0,0,0,0.5)";
+                    bg.style.display = "flex";
+                    bg.style.zIndex = "1000000";
+                    bg.style.flexDirection = "column";
+                    bg.style.alignItems = "center";
+                    bg.style.justifyContent = "center";
+                    bg.style.gap = "12px";
+                    document.body.append(bg);
+                    let textarea = document.createElement("textarea");
+                    textarea.style.width = "50%";
+                    textarea.style.height = "50%";
+                    bg.append(textarea);
+                    let cancelButton = document.createElement("button");
+                    cancelButton.onclick = () => bg.remove();
+                    cancelButton.innerText = "cancel";
+                    bg.append(cancelButton);
+                    let doneButton = document.createElement("button");
+                    doneButton.onclick = () => {
+                        let input = textarea.value;
+                        if (input == "") {
+                            placedHouses.forEach((house) => {
+                                house.root.parent.remove(house.root);
+                            });
+                            placedHouses = [];
+                            bg.remove();
+                            return;
+                        }
+                        let json = JSON.parse(input);
+                        if (!json.length) {
+                            alert("Invalid input");
+                            return;
+                        }
+                        placedHouses.forEach((house) => {
+                            house.root.parent.remove(house.root);
+                        });
+                        placedHouses = [];
+                        json.forEach((houseCoord, i) => {
+                            addHouse(houseCoord.x, houseCoord.z, i);
+                        });
+                        bg.remove();
+                    };
+                    doneButton.innerText = "done";
+                    bg.append(doneButton);
+                };
+            }
+            buildDebugUi();
+            function updateDebugUi() {
+                houseCountLabel.innerText = `Click the map to\nplace a house\n\n# placed houses: ${placedHouses.length}`;
+            }
+
+            // start
+            init();
+
+            let doorDataList = [];
+            function addHouse(x, z, minigameIndex) {
+                let y = getMapHeight({ x, z }, false);
+                let state = house_model_state;
+
+                state.materials.default.color =
+                    0x888888 + 0x888888 * Math.random();
+
+                let house = new CrappyObjectInstance(state);
+                house.root.position.set(x, y, z);
+                house.root.scale.multiplyScalar(10);
+
+                houseGroup.add(house.root);
+                placedHouses.push(house);
+
+                // Find the door
+                let houseId = "house-" + placedHouses.length;
+                let door = house.instances["door"];
+                let pivot = new THREE.Group();
+                door.parent.add(pivot);
+                console.log("ok: ", door.parent.parent);
+                pivot.position.copy(door.position);
+                pivot.position.x -= 2;
+
+                let s = new THREE.Mesh(
+                    new THREE.CylinderGeometry(),
+                    new THREE.MeshStandardMaterial(),
+                );
+                s.position.y += 1;
+                pivot.add(s);
+                s = new THREE.Mesh(
+                    new THREE.CylinderGeometry(),
+                    new THREE.MeshStandardMaterial(),
+                );
+                s.position.y -= 1;
+                pivot.add(s);
+                s.scale.multiplyScalar(1);
+
+                pivot.add(door);
+                door.position.set(0, 0, 0);
+                door.position.x = 2;
+                doorDataList.push({ houseId, obj: door, minigameIndex, pivot });
+            }
+            let onClickMini = (e) => {
+                let rect = e.target.getBoundingClientRect();
+                let p = {
+                    x: (e.clientX - rect.left) / rect.width,
+                    y: (e.clientY - rect.top) / rect.height,
+                };
+                console.log("Hero position: ", hero.position);
+                console.log("Player position: ", player);
+                console.log("Clicked point: ", p);
+
+                // convert percentage-based map point p to world coordinates
+                let coord = {
+                    x: (p.x - 0.5) * 512 * 16,
+                    z: (p.y - 0.5) * 512 * 16,
+                };
+
+                addHouse(coord.x, coord.z, placedHouses.length);
+            };
+            debugMap.addEventListener("click", (e) => {
+                e.preventDefault();
+                onClickMini(e);
+            });
+        </script>
     </body>
-  </html></DOCTYPE
->
+</html>
