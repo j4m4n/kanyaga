@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Flatland – cleaned up</title>
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <style>
+            @font-face {
+                font-family: "prstartk";
+                src:
+                    url("fonts/prstartk-webfont.woff2") format("woff2"),
+                    url("fonts/prstartk-webfont.woff") format("woff");
+                font-weight: normal;
+                font-style: normal;
+            }
+
+            body {
+                margin: 0;
+                background: #1a1a1b;
+                overflow: hidden;
+                cursor: crosshair;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                font-family: monospace;
+                color: #eee;
+                user-select: none;
+            }
+            canvas {
+                position: fixed;
+                image-rendering: crisp-edges;
+                image-rendering: pixelated;
+                transform: scale(6);
+                border: #000 1px solid;
+            }
+
+            #cursorcanvas,
+            #colcanvas,
+            #hitcanvas {
+                position: absolute;
+                top: 0px;
+                left: 0px;
+                width: 1024px;
+                height: 1024px;
+                transform: scale(0.3);
+                transform-origin: top left;
+            }
+            #bumpcanvas {
+                display: none;
+            }
+            .on #colcanvas,
+            .off #hitcanvas {
+                display: block;
+            }
+            .off #colcanvas,
+            .on #hitcanvas {
+                display: none;
+            }
+            #cursorcanvas {
+                z-index: 9;
+            }
+            #hud {
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 99;
+                padding: 8px;
+                background: rgba(0, 0, 0, 0.5);
+                color: #fff;
+                font-family: "prstartk";
+            }
+            #btn {
+                background: transparent;
+                border: none;
+                color: #fff;
+                padding: 12px;
+                cursor: pointer;
+                outline: none;
+                font-family: "prstartk";
+            }
+            #btn:active {
+                color: #ffff00;
+            }
+            #btn.on {
+                background: #ff0000;
+            }
+        </style>
+    </head>
+    <body class="on">
+        <div id="hud">
+            <button id="btn">x</button>
+            <p id="xvar">xvar</p>
+        </div>
+
+        <canvas id="cursorcanvas" width="1024" height="1024"></canvas>
+        <canvas id="colcanvas" width="1024" height="1024"></canvas>
+        <canvas id="hitcanvas" width="1024" height="1024"></canvas>
+        <canvas id="bumpcanvas" width="1024" height="1024"></canvas>
+
+        <div id="threecnv"></div>
+
+        <script src="js/three.min.js"></script>
+        <script src="js/nipplejs.min.js"></script>
+
+        <script type="module">
+            (() => {
+                const CANVAS_SIZE = 1024;
+                const HALF_CANVAS = CANVAS_SIZE / 2;
+                const PLAYER_MAX_SPEED = 1;
+                const JOYSTICK_MAX_SPEED = 1;
+                const hudBtn = document.getElementById("btn");
+                const hudInfo = document.getElementById("xvar");
+
+                const cursorCanvas = document.getElementById("cursorcanvas");
+                const cursorCtx = cursorCanvas.getContext("2d");
+                cursorCanvas.width = cursorCanvas.height = 1024;
+
+                const colCanvas = document.getElementById("colcanvas");
+                const colCtx = colCanvas.getContext("2d");
+
+                const hitCanvas = document.getElementById("hitcanvas");
+                const hitCtx = hitCanvas.getContext("2d", {
+                    willReadFrequently: true,
+                });
+
+                const bumpCanvas = document.getElementById("bumpcanvas");
+                const bumpCtx = bumpCanvas.getContext("2d", {
+                    willReadFrequently: true,
+                });
+
+                hudBtn.addEventListener("click", () => {
+                    document.body.classList.toggle("on");
+                    document.body.classList.toggle("off");
+                    hudBtn.classList.toggle("on");
+                });
+
+                const keyboard = {
+                    _pressed: {},
+                    LEFT: 37,
+                    UP: 38,
+                    RIGHT: 39,
+                    DOWN: 40,
+                    isDown(key) {
+                        return this._pressed[key];
+                    },
+                    onKeyDown(e) {
+                        this._pressed[e.keyCode] = true;
+                    },
+                    onKeyUp(e) {
+                        delete this._pressed[e.keyCode];
+                    },
+                };
+                window.addEventListener("keydown", (e) =>
+                    keyboard.onKeyDown(e),
+                );
+                window.addEventListener("keyup", (e) => keyboard.onKeyUp(e));
+
+                const limitVelocity = (vx, vy, max) => {
+                    const len = Math.hypot(vx, vy);
+                    if (!len) return { vx: 0, vy: 0 };
+                    const scale = Math.min(len, max) / len;
+                    return { vx: vx * scale, vy: vy * scale };
+                };
+
+                const imgBase = new Image();
+                const imgTex = new Image();
+                const imgBump = new Image();
+
+                const loadImg = (img, src, onload) => {
+                    return new Promise((res, rej) => {
+                        img.onload = () => {
+                            onload();
+                            res();
+                        };
+                        img.onerror = rej;
+                        img.src = src;
+                    });
+                };
+
+                Promise.all([
+                    loadImg(imgBase, "assets/level-hit.png", () =>
+                        hitCtx.drawImage(imgBase, 0, 0),
+                    ),
+                    loadImg(imgTex, "assets/level-col.png", () =>
+                        colCtx.drawImage(imgTex, 0, 0),
+                    ),
+                    loadImg(imgBump, "assets/level-bmp.png", () =>
+                        bumpCtx.drawImage(imgBump, 0, 0),
+                    ),
+                ])
+                    .then(() => {
+                        initThree();
+                        animate();
+                    })
+                    .catch((err) =>
+                        console.error("Failed to load level images", err),
+                    );
+
+                let scene, camera, renderer, player, cursor, colPlane;
+
+                const initThree = () => {
+                    renderer = new THREE.WebGLRenderer({
+                        antialias: false,
+                        alpha: true,
+                    });
+
+                    renderer.setSize(64, 64);
+                    renderer.shadowMap.enabled = true;
+                    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                    document.body.appendChild(renderer.domElement);
+
+                    scene = new THREE.Scene();
+                    camera = new THREE.PerspectiveCamera(
+                        75,
+                        window.innerWidth / window.innerHeight,
+                        1,
+                        2000,
+                    );
+                    camera.position.set(0, 50, 50);
+                    camera.lookAt(0, 0, 0);
+                    camera.aspect = 1 / 1;
+                    camera.updateProjectionMatrix();
+
+                    const amb = new THREE.AmbientLight(0xeeeeee, 0.7);
+                    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+                    dir.position.set(0, 50, 0);
+                    dir.castShadow = true;
+                    dir.shadow.mapSize.set(32, 32);
+                    dir.shadow.camera.near = 0.5;
+                    dir.shadow.camera.far = 500;
+                    scene.add(amb);
+
+                    const tex = new THREE.CanvasTexture(colCanvas);
+                    tex.magFilter = tex.minFilter = THREE.NearestFilter;
+                    const texbump = new THREE.CanvasTexture(bumpCanvas);
+                    // texbump.magFilter = texbump.minFilter = THREE.NearestFilter;
+
+                    const geometry = new THREE.PlaneGeometry(
+                        1024,
+                        1024,
+                        512,
+                        512,
+                    );
+                    const material = new THREE.MeshStandardMaterial({
+                        // map: tex,
+                        map: new THREE.TextureLoader().load(
+                            "assets/level-col.png",
+                        ),
+                        metalness: 0.2,
+                        displacementMap: texbump,
+                        displacementScale: 20,
+                    });
+                    colPlane = new THREE.Mesh(geometry, material);
+                    colPlane.rotation.x = -Math.PI / 2;
+                    colPlane.position.y = -10;
+                    colPlane.castShadow = true;
+                    colPlane.receiveShadow = true;
+                    colPlane.material.map.magFilter = THREE.NearestFilter;
+                    colPlane.material.map.minFilter = THREE.NearestFilter;
+                    // colPlane.material.map.needsUpdate = true;
+                    scene.add(colPlane);
+
+                    // colour ground plane
+                    var watergeometry = new THREE.PlaneGeometry(8000, 8000);
+                    var watermaterial = new THREE.MeshStandardMaterial({
+                        color: 0x3333ff,
+                    });
+                    var waterplane = new THREE.Mesh(
+                        watergeometry,
+                        watermaterial,
+                    );
+                    waterplane.rotation.set(-Math.PI / 2, 0, 0);
+                    waterplane.position.set(0, -5, 0);
+                    scene.add(waterplane);
+
+                    player = new THREE.Group();
+                    scene.add(player);
+                    // add light to player
+                    player.add(dir);
+                    // player.position.y = getMapHeight(
+                    //     { x: player.position.x, z: player.position.z },
+                    //     false,
+                    // );
+
+                    const headGeo = new THREE.SphereGeometry(3, 12, 12);
+                    const headMat = new THREE.MeshStandardMaterial({
+                        color: 0xee0000,
+                    });
+                    const head = new THREE.Mesh(headGeo, headMat);
+                    head.position.set(0, -20, 0);
+                    head.castShadow = true;
+                    player.add(head);
+
+                    cursor = new THREE.Group();
+                    scene.add(cursor);
+
+                    const target = new THREE.Group();
+                    target.position.y = 1;
+                    cursor.add(target);
+                    player.userData.target = target;
+                };
+
+                const hero = {
+                    allowMove: true,
+                    moving: false,
+                    maxSpeed: PLAYER_MAX_SPEED,
+                    posX: 0,
+                    posZ: 0,
+                    vx: 0,
+                    vy: 0,
+                    lastPixel: 0,
+                };
+
+                const getBumpValue = (x, z) => {
+                    const u = HALF_CANVAS + Math.floor(x);
+                    const v = HALF_CANVAS + Math.floor(z);
+                    const pixelData = bumpCtx.getImageData(u, v, 1, 1).data;
+                    // Return the red channel value (assuming grayscale bump map)
+                    return pixelData[0];
+                };
+
+                const updateloop = () => {
+                    if (hero.allowMove) {
+                        if (keyboard.isDown(keyboard.LEFT))
+                            cursor.position.x -= hero.maxSpeed;
+                        if (keyboard.isDown(keyboard.RIGHT))
+                            cursor.position.x += hero.maxSpeed;
+                        if (keyboard.isDown(keyboard.UP))
+                            cursor.position.z -= hero.maxSpeed;
+                        if (keyboard.isDown(keyboard.DOWN))
+                            cursor.position.z += hero.maxSpeed;
+                    }
+
+                    if (hero.moving) {
+                        cursor.position.x += hero.vx;
+                        cursor.position.z += hero.vy;
+                    }
+
+                    // player positions
+                    player.position.x +=
+                        (cursor.position.x - player.position.x) * 0.3;
+                    player.position.z +=
+                        (cursor.position.z - player.position.z) * 0.3;
+
+                    // player.lookAt(
+                    //     player.userData.target.position.x,
+                    //     0,
+                    //     player.userData.target.position.z,
+                    // );
+
+                    const u = HALF_CANVAS + Math.floor(cursor.position.x);
+                    const v = HALF_CANVAS + Math.floor(cursor.position.z);
+                    const pixel = hitCtx.getImageData(u, v, 1, 1).data[0];
+
+                    if (pixel > 254) {
+                        cursor.position.x = hero.posX;
+                        cursor.position.z = hero.posZ;
+                        hero.allowMove = false;
+                    } else {
+                        hero.posX = cursor.position.x;
+                        hero.posZ = cursor.position.z;
+                        hero.allowMove = true;
+                        // minimap position
+                        cursorCtx.clearRect(
+                            0,
+                            0,
+                            cursorCanvas.width,
+                            cursorCanvas.width,
+                        );
+                        cursorCtx.fillStyle = "#0000ff";
+                        // cursorCtx.fillRect(u, v, 1, 1);
+                        cursorCtx.fillRect(u - 2, v - 2, 8, 8);
+                    }
+
+                    // set cursor.position.y according to 'pixel' value and set the object on the ground
+                    // Get bump map value at cursor position
+                    const bumpValue = getBumpValue(
+                        player.position.x,
+                        player.position.z,
+                    );
+                    // Scale the bump value to an appropriate height (adjust 0.2 as needed)
+                    player.position.y = bumpValue * 0.2;
+
+                    if (hero.lastPixel !== pixel) {
+                        if (pixel > 99) {
+                        } else {
+                            hudInfo.textContent = pixel;
+                        }
+                        hero.lastPixel = pixel;
+                    }
+
+                    scene.position.set(
+                        -player.position.x,
+                        0,
+                        -player.position.z,
+                    );
+                };
+
+                const initJoystick = () => {
+                    const stick = nipplejs.create({
+                        mode: "dynamic",
+                        dataOnly: true,
+                        zone: document.body,
+                    });
+
+                    stick.on("move", (e, data) => {
+                        const vx = data.force * Math.cos(data.angle.radian);
+                        const vy = -data.force * Math.sin(data.angle.radian);
+                        const limited = limitVelocity(
+                            vx,
+                            vy,
+                            JOYSTICK_MAX_SPEED,
+                        );
+                        hero.vx = limited.vx;
+                        hero.vy = limited.vy;
+                        hero.moving = true;
+
+                        const angle =
+                            Math.atan2(hero.vy, hero.vx) + Math.PI * 0.5;
+                        player.rotation.y = -angle;
+                    });
+
+                    stick.on("end", () => {
+                        hero.moving = false;
+                        hero.vx = hero.vy = 0;
+                    });
+                };
+
+                const animate = () => {
+                    requestAnimationFrame(animate);
+                    updateloop();
+                    renderer.render(scene, camera);
+                };
+
+                const startGame = () => {
+                    initJoystick();
+                };
+
+                Promise.all([])
+                    .then(startGame)
+                    .catch(() => {});
+            })();
+        </script>
+    </body>
+</html>
