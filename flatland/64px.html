@@ -224,7 +224,7 @@
 
                     const amb = new THREE.AmbientLight(0xeeeeee, 0.7);
                     const dir = new THREE.DirectionalLight(0xffffff, 0.6);
-                    dir.position.set(0, 50, 0);
+                    dir.position.set(0, 150, 80);
                     dir.castShadow = true;
                     dir.shadow.mapSize.set(32, 32);
                     dir.shadow.camera.near = 0.5;
@@ -259,6 +259,8 @@
                     colPlane.material.map.magFilter = THREE.NearestFilter;
                     colPlane.material.map.minFilter = THREE.NearestFilter;
                     // colPlane.material.map.needsUpdate = true;
+                    var maxAnisotropy = renderer.getMaxAnisotropy();
+                    colPlane.material.map.anisotropy = maxAnisotropy;
                     scene.add(colPlane);
 
                     // colour ground plane
@@ -343,11 +345,6 @@
                     player.position.z +=
                         (cursor.position.z - player.position.z) * 0.3;
 
-                    // player.lookAt(
-                    //     player.userData.target.position.x,
-                    //     0,
-                    //     player.userData.target.position.z,
-                    // );
 
                     const u = HALF_CANVAS + Math.floor(cursor.position.x);
                     const v = HALF_CANVAS + Math.floor(cursor.position.z);
@@ -361,6 +358,7 @@
                         hero.posX = cursor.position.x;
                         hero.posZ = cursor.position.z;
                         hero.allowMove = true;
+                        
                         // minimap position
                         cursorCtx.clearRect(
                             0,
@@ -369,11 +367,9 @@
                             cursorCanvas.width,
                         );
                         cursorCtx.fillStyle = "#0000ff";
-                        // cursorCtx.fillRect(u, v, 1, 1);
                         cursorCtx.fillRect(u - 2, v - 2, 8, 8);
                     }
 
-                    // set cursor.position.y according to 'pixel' value and set the object on the ground
                     // Get bump map value at cursor position
                     const bumpValue = getBumpValue(
                         player.position.x,
