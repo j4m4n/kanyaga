@@ -320,23 +320,12 @@
 
                     // ----- responsive resizing -----
                     window.addEventListener("resize", onResize);
-                    window.addEventListener("wheel", onWheel);
                 };
 
                 const onResize = () => {
                     camera.aspect = window.innerWidth / window.innerHeight;
                     camera.updateProjectionMatrix();
                     renderer.setSize(window.innerWidth, window.innerHeight);
-                };
-
-                const onWheel = (e) => {
-                    // simple zoom – clamp to a reasonable range
-                    camera.position.y = THREE.MathUtils.clamp(
-                        camera.position.y - e.deltaY * 0.05,
-                        20,
-                        250,
-                    );
-                    camera.position.z = camera.position.y;
                 };
 
                 /* ----------------------------------------------------------------- */
@@ -427,7 +416,7 @@
                     const stick = nipplejs.create({
                         mode: "dynamic",
                         dataOnly: true,
-                        zone: body, // the three.js canvas
+                        zone: renderer.domElement, // the three.js canvas
                     });
 
                     stick.on("move", (e, data) => {
