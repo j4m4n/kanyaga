@@ -1,0 +1,172 @@
+
+const DEBUG_UI = {
+    debugMap: document.createElement('canvas'),
+    debugDiv: document.createElement('div'),
+    houseCountDiv: document.createElement('div'),
+};
+DEBUG_UI.init = () => {
+
+    DEBUG_UI.debugMap.id = "lvlbump-debug";
+    DEBUG_UI.debugDiv.id = "debug";
+    document.body.append(DEBUG_UI.debugMap);
+    document.body.append(DEBUG_UI.debugDiv);
+    DEBUG_UI.debugMap.width = GAME.mapWidth;
+    DEBUG_UI.debugMap.height = GAME.mapHeight;
+    DEBUG_UI.debugCtx = DEBUG_UI.debugMap.getContext('2d');
+    const topLeftHud = document.createElement('div');
+    topLeftHud.id = 'topleft-hud';
+    document.body.append(topLeftHud);
+    DEBUG_UI.topLeftHud = topLeftHud;
+    DEBUG_UI.initTopLeftHud();
+    DEBUG_UI.buildDebugUi();
+    DEBUG_UI.updateDebugUi();
+
+    DEBUG_UI.debugMap.addEventListener('click', (e) => {
+        e.preventDefault();
+        DEBUG_UI.onClickMini(e);
+    });
+};
+DEBUG_UI.update = (time) => {
+
+    if (typeof DEBUG_UI !== 'undefined') {
+        DEBUG_UI.updateDebugMap();
+        DEBUG_UI.updatePlayerPos();
+    }
+}
+DEBUG_UI.initTopLeftHud = () => {
+    const { topLeftHud } = DEBUG_UI;
+    topLeftHud.innerHTML = `
+        <div>x:<span id="xvar">1</span></div>
+        <div>z:<span id="zvar">2</span></div>
+        <div><span id="txt"></span></div>
+    `;
+}
+DEBUG_UI.buildDebugUi = () => {
+    const { debugDiv, debugMap } = DEBUG_UI;
+    debugDiv.innerHTML = '';
+
+    // House count label
+    DEBUG_UI.houseCountDiv = document.createElement('div');
+    debugDiv.append(DEBUG_UI.houseCountDiv);
+
+    // Export button
+    let exportBtn = document.createElement('button');
+    exportBtn.innerText = 'Export House Positions';
+    exportBtn.onclick = () => {
+        const bg = document.createElement('div');
+        bg.className = 'debug-modal';
+        document.body.append(bg);
+
+        const textarea = document.createElement('textarea');
+        textarea.value = JSON.stringify(PLACED_HOUSES.map(house => house.root.position));
+        bg.append(textarea);
+
+        const doneButton = document.createElement('button');
+        doneButton.innerText = 'done';
+        doneButton.onclick = () => bg.remove();
+        bg.append(doneButton);
+    };
+    debugDiv.append(exportBtn);
+
+    // Import button
+    let importBtn = document.createElement('button');
+    importBtn.innerText = 'Import House Positions';
+    importBtn.onclick = () => {
+        const bg = document.createElement('div');
+        bg.className = 'debug-modal';
+        document.body.append(bg);
+
+        const textarea = document.createElement('textarea');
+        bg.append(textarea);
+
+        const cancelButton = document.createElement('button');
+        cancelButton.innerText = 'cancel';
+        cancelButton.onclick = () => bg.remove();
+        bg.append(cancelButton);
+
+        const doneButton = document.createElement('button');
+        doneButton.innerText = 'done';
+        doneButton.onclick = () => {
+            const input = textarea.value;
+            if (input === '') {
+                GAME.placedHouseArr.forEach(house => {
+                    house.root.parent.remove(house.root);
+                });
+                GAME.placedHouseArr = [];
+                bg.remove();
+                return;
+            }
+
+            let json;
+            try {
+                json = JSON.parse(input);
+            } catch (e) {
+                alert('Invalid input');
+                return;
+            }
+
+            if (!Array.isArray(json) || !json.length) {
+                alert('Invalid input');
+                return;
+            }
+
+            GAME.placedHouseArr.forEach(house => {
+                house.root.parent.remove(house.root);
+            });
+            GAME.placedHouseArr = [];
+            GAME.houseGroup.parent.remove(GAME.houseGroup);
+            GAME.houses = json.map(n => {
+                return {
+                    x: n.x,
+                    z: n.z,
+                    modelJsonObj: MODELS_CONFIG.house
+                };
+            })
+            bg.remove();
+        };
+        bg.append(doneButton);
+    };
+    debugDiv.append(importBtn);
+};
+DEBUG_UI.onClickMini = () => {
+    DEBUG_UI.updateDebugUi();
+};
+DEBUG_UI.updateDebugUi = () => {
+    DEBUG_UI.houseCountDiv.innerText = `Click the map to\nplace a house\n\n# placed houses: ${GAME.placedHouseArr.length}`;
+}
+DEBUG_UI.updatePlayerPos = () => {
+    const xvar = document.getElementById("xvar");
+    if (!xvar) {
+        console.warn('xvar element not found');
+        return;
+    }
+    xvar.innerHTML = Math.floor(GAME.player.x);
+    document.getElementById("zvar").innerHTML = Math.floor(GAME.player.z);
+    document.getElementById("txt").innerHTML = 'y:' + GAME.hero.position.y;
+}
+DEBUG_UI.updateDebugMap = () => {
+    const { debugCtx, debugMap } = DEBUG_UI;
+    const olimg = GAME.groundplane.material.displacementMap.image;
+    if (!olimg) {
+        // console.warn('No ground plane image found for debug map');
+        return;
+    }
+    debugCtx.clearRect(0, 0, debugMap.width, debugMap.height);
+    debugCtx.drawImage(olimg, 0, 0, debugMap.width, debugMap.height);
+
+    GAME.placedHouseArr.forEach(house => {
+        let uv = {
+            u: (house.root.position.x / 4096) / 2 + 0.5,
+            v: (house.root.position.z / 4096) / 2 + 0.5,
+        };
+        debugCtx.fillStyle = '#00ffff';
+        debugCtx.fillRect(uv.u * debugCtx.canvas.width - 25, uv.v * debugCtx.canvas.height - 25, 50, 50);
+    });
+
+    // draw player position on map
+    let uv = GAME.getUvPosition(GAME.player);
+
+    debugCtx.fillStyle = "rgba(255, 0, 0, 1)";
+    debugCtx.fillRect(uv.u - 12, uv.v - 12, 24, 24);
+};
+DEBUG_UI.init();

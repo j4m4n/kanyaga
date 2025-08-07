@@ -1,0 +1,70 @@
+<html>
+
+<head>
+    <title>dunes</title>
+    <link rel="stylesheet" href="css/page.css" />
+    <script src="js/three.min.js"></script>
+    <script src="js/nipplejs.js"></script>
+    <script src="js/utils/math.js"></script>
+    <script src="js/classes/Game.js"></script>
+    <script src="js/classes/GoldSmashMinigame.js"></script>
+    <script src="js/classes/CrappyObjectInstance.js"></script>
+    <script src="js/utils/sceneLogger.js"></script>
+</head>
+
+<body>
+    <canvas id="game-canvas"></canvas>
+    <div id="joystick-overlay"></div>
+</body>
+
+</html>
+<script src="js/globals/MODELS_CONFIG.js"></script>
+<script src="js/globals/CONTROLS.js"></script>
+<script type="text/javascript">
+    const GAME = new Game({
+        canvas: document.getElementById('game-canvas'),
+        width: 64,
+        height: 64,
+        mapWidth: 1024,
+        mapHeight: 1024,
+        player: {
+            width: 128,
+            size: 32,
+            count: 4,
+            fps: 16,
+            x: 0,
+            z: 0,
+            xlerp: 0,
+            zlerp: 0,
+            vx: 0,
+            vy: 0,
+            xu: 0,
+            xv: 0,
+            rotation: 0,
+            maxSpeed: 0.4,
+            moving: false,
+            jactive: false,
+        },
+        keyboard: CONTROLS.keyboard,
+        joystick: CONTROLS.joystick,
+        camOffsetY: 0,
+        houses: [
+            { x: -60, y: -148.24, z: -160, modelJsonObj: MODELS_CONFIG.house }
+        ],
+        minigames: {
+            0: { name: 'goldsmash', handlerClass: GoldSmashMinigame },
+        }
+    });
+    let TIME = 0;
+    function animate() {
+        requestAnimationFrame(animate);
+        TIME = window.performance.now() * 0.001; // time since game start in seconds
+        GAME.update(TIME);
+    }
+    animate();
+    setTimeout(() => {
+        sceneLogger(GAME.scene, "New Scene");
+    }, 500);
+</script>
+<link rel="stylesheet" href="css/debug.css" />
+<script src="js/globals/DEBUG_UI.js"></script>
