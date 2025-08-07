@@ -427,7 +427,7 @@
                     const stick = nipplejs.create({
                         mode: "dynamic",
                         dataOnly: true,
-                        zone: renderer.domElement, // the three.js canvas
+                        zone: body, // the three.js canvas
                     });
 
                     stick.on("move", (e, data) => {
