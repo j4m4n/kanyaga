@@ -138,6 +138,7 @@ DEBUG_UI.updatePlayerPos = () => {
     const xvar = document.getElementById("xvar");
     if (!xvar) {
         console.warn('xvar element not found');
+        debugger;
         return;
     }
     xvar.innerHTML = Math.floor(GAME.player.x);
@@ -160,7 +161,18 @@ DEBUG_UI.updateDebugMap = () => {
             v: (house.root.position.z / 4096) / 2 + 0.5,
         };
         debugCtx.fillStyle = '#00ffff';
-        debugCtx.fillRect(uv.u * debugCtx.canvas.width - 25, uv.v * debugCtx.canvas.height - 25, 50, 50);
+        const s = 50;
+        debugCtx.fillRect(uv.u * debugCtx.canvas.width - (s/2), uv.v * debugCtx.canvas.height - (s/2), s, s);
+    });
+
+    GAME.placedTreeArr.forEach(tree => {
+        let uv = {
+            u: (tree.root.position.x / 4096) / 2 + 0.5,
+            v: (tree.root.position.z / 4096) / 2 + 0.5,
+        };
+        debugCtx.fillStyle = '#00ff00';
+        const s = 10;
+        debugCtx.fillRect(uv.u * debugCtx.canvas.width - (s/2), uv.v * debugCtx.canvas.height - (s/2), s, s);
     });
 
     // draw player position on map
@@ -169,4 +181,3 @@ DEBUG_UI.updateDebugMap = () => {
     debugCtx.fillStyle = "rgba(255, 0, 0, 1)";
     debugCtx.fillRect(uv.u - 12, uv.v - 12, 24, 24);
 };
-DEBUG_UI.init();
