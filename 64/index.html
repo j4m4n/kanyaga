@@ -9,7 +9,18 @@
     <script src="js/classes/Game.js"></script>
     <script src="js/classes/GoldSmashMinigame.js"></script>
     <script src="js/classes/CrappyObjectInstance.js"></script>
-    <script src="js/utils/sceneLogger.js"></script>
+    <!-- <script src="js/utils/sceneLogger.js"></script> -->
+    <script src="js/utils/jsonGeoGenerator.js"></script>
+    <script src="js/utils/image_parser.js"></script>
+
+    <img src="assets/bump.jpg" id="bumpImg" style="display:none;">
+    <img src="assets/col.jpg" id="colorImg" style="display:none;">
+    <img src="assets/treeBark_35x150.png" id="barkImg" style="display:none;">
+    <img src="assets/face.png" id="heroFaceImg" style="display:none;">
+    <img src="assets/leg-walk3.png" id="heroLegWalkImg" style="display:none;">
+    <img src="assets/leg-still3.png" id="heroLegIdleImg" style="display:none;">
+
+
 </head>
 
 <body>
@@ -19,52 +30,86 @@
 
 </html>
 <script src="js/globals/MODELS_CONFIG.js"></script>
+<script src="js/globals/TREE_TYPES.js"></script>
 <script src="js/globals/CONTROLS.js"></script>
 <script type="text/javascript">
-    const GAME = new Game({
-        canvas: document.getElementById('game-canvas'),
-        width: 64,
-        height: 64,
-        mapWidth: 1024,
-        mapHeight: 1024,
-        player: {
-            width: 128,
-            size: 32,
-            count: 4,
-            fps: 16,
-            x: 0,
-            z: 0,
-            xlerp: 0,
-            zlerp: 0,
-            vx: 0,
-            vy: 0,
-            xu: 0,
-            xv: 0,
-            rotation: 0,
-            maxSpeed: 0.4,
-            moving: false,
-            jactive: false,
-        },
-        keyboard: CONTROLS.keyboard,
-        joystick: CONTROLS.joystick,
-        camOffsetY: 0,
-        houses: [
-            { x: -60, y: -148.24, z: -160, modelJsonObj: MODELS_CONFIG.house }
-        ],
-        minigames: {
-            0: { name: 'goldsmash', handlerClass: GoldSmashMinigame },
-        }
-    });
+
+    let GAME;
     let TIME = 0;
+
+    window.onload = () => {
+        console.log("barkImg.width:", barkImg.width);
+        console.log("barkImg.height:", barkImg.height);
+        initTreeMaterials(barkImg);
+
+        GAME = new Game({
+            canvas: document.getElementById('game-canvas'),
+            width: 64,
+            height: 64,
+            mapWidth: 1024,
+            mapHeight: 1024,
+            heightMapImg: document.getElementById('bumpImg'),
+            player: {
+                width: 128,
+                size: 32,
+                count: 4,
+                fps: 16,
+                x: 0,
+                z: 0,
+                xlerp: 0,
+                zlerp: 0,
+                vx: 0,
+                vy: 0,
+                xu: 0,
+                xv: 0,
+                rotation: 0,
+                maxSpeed: 0.4,
+                moving: false,
+                jactive: false,
+            },
+            keyboard: CONTROLS.keyboard,
+            joystick: CONTROLS.joystick,
+            camOffsetY: 0,
+            treeScale: 12,
+            houses: [
+                { x: -60, y: -148.24, z: -160, modelJsonObj: MODELS_CONFIG.house }
+            ],
+            trees: [
+                { x: 70, z: 160, modelJsonObj: MODELS_CONFIG.tree_Alder_5 },
+                { x: -120, z: -200, modelJsonObj: MODELS_CONFIG.tree_Ash_2 },
+                { x: 180, z: 300, modelJsonObj: MODELS_CONFIG.tree_Aspen_7 },
+                { x: -340, z: 240, modelJsonObj: MODELS_CONFIG.tree_DogRose_1 },
+                { x: 260, z: -320, modelJsonObj: MODELS_CONFIG.tree_DownyBirch_9 },
+                { x: -480, z: 420, modelJsonObj: MODELS_CONFIG.tree_EnglishElm_3 },
+                { x: 390, z: -150, modelJsonObj: MODELS_CONFIG.tree_Hazel_6 },
+                { x: -600, z: -380, modelJsonObj: MODELS_CONFIG.tree_Holly_0 },
+                { x: 540, z: 120, modelJsonObj: MODELS_CONFIG.tree_Hornbeam_4 },
+                { x: 620, z: -220, modelJsonObj: MODELS_CONFIG.tree_LombardyPoplar_8 },
+                { x: -720, z: 520, modelJsonObj: MODELS_CONFIG.tree_Magnolia_5 },
+                { x: 360, z: -480, modelJsonObj: MODELS_CONFIG.tree_MountainAsh_7 },
+                { x: -200, z: -560, modelJsonObj: MODELS_CONFIG.tree_SweetChestnut_2 },
+                { x: 480, z: 600, modelJsonObj: MODELS_CONFIG.tree_Sycamore_9 },
+                { x: -820, z: -300, modelJsonObj: MODELS_CONFIG.tree_TurkeyOak_1 },
+            ],
+            minigames: {
+                0: { name: 'goldsmash', handlerClass: GoldSmashMinigame },
+            }
+        });
+
+        if (typeof DEBUG_UI !== 'undefined') {
+            DEBUG_UI.init();
+        }
+        
+        animate();
+    }
     function animate() {
         requestAnimationFrame(animate);
         TIME = window.performance.now() * 0.001; // time since game start in seconds
         GAME.update(TIME);
     }
-    animate();
-    setTimeout(() => {
-        sceneLogger(GAME.scene, "New Scene");
-    }, 500);
+    // setTimeout(() => {
+    //     sceneLogger(GAME.scene, "New Scene");
+    // }, 500);
 </script>
 <link rel="stylesheet" href="css/debug.css" />
 <script src="js/globals/DEBUG_UI.js"></script>

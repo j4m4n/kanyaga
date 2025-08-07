@@ -34,6 +34,10 @@ class Game {
         }) {
         Object.assign(this, options);
 
+        this.debugMode = false;
+
+        if(this.debugMode)console.groupCollapsed("GAME constructor");
+
         if (!this.canvas) {
             this.canvas = document.createElement("canvas");
             this.canvas.id = "generated-game-canvas";
@@ -51,14 +55,11 @@ class Game {
         this.minigameDataMap = options.minigames;
 
         this.placedHouseArr = [];
+        this.placedTreeArr = [];
 
         this.objectArr = []; // does not include hero
 
         this.doorDataList = []; // doors to houses, used for minigames
-
-        if (typeof DEBUG_UI !== "undefined") {
-            DEBUG_UI.init();
-        }
 
         this.initScene();
 
@@ -66,27 +67,19 @@ class Game {
 
         this.initHero();
         this.initHouses();
+        this.initTrees();
 
         this.initOverlays();
 
-    }
-
-    setActiveMinigame(minigameInfo) {
-        this.activeMinigameInfo = minigameInfo;
-    }
-
-    initOverlays() {
-        this.noiseCanvas = document.createElement("canvas");
-        this.noiseCanvas.width = 64;
-        this.noiseCanvas.height = 64;
-        this.noiseCtx = this.noiseCanvas.getContext("2d");
+        if(this.debugMode)console.groupEnd();
 
     }
 
     initScene() {
+        if(this.debugMode)console.groupCollapsed("GAME.initScene");
 
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(72, 1, 0.1, 1000);
+        this.camera = new THREE.PerspectiveCamera(72, 1, 0.1, 10000);
         this.camera.position.z = 6;
 
         this.renderer = new THREE.WebGLRenderer({
@@ -110,14 +103,16 @@ class Game {
         // Optional fog (commented out like in main scene)
         // this.scene.fog = new THREE.FogExp2(0x000000, 0.0015);
 
+        if(this.debugMode)console.groupEnd();
     }
 
     initGround() {
+        if(this.debugMode)console.groupCollapsed("GAME.initGround");
         const { objectArr, placedHouseArr, scene } = this;
         // groundplane
         const geometry = new THREE.PlaneBufferGeometry(
-            2048,
-            2048,
+            this.worldWidth ?? 2048,
+            this.worldHeight ?? 2048,
             300,
             300,
         );
@@ -162,9 +157,11 @@ class Game {
         waterplane.name = "waterplane";
         scene.add(waterplane);
         this.waterplane = waterplane;
+        if(this.debugMode)console.groupEnd();
     }
 
     initHero() {
+        if(this.debugMode)console.groupCollapsed("GAME.initHero");
         this.hero = new THREE.Group();
         this.hero.name = "hero";
         this.scene.add(this.hero);
@@ -210,9 +207,11 @@ class Game {
         this.hero.add(heroLegPlane);
         this.heroLegPlane = heroLegPlane;
         this.heroLegPlane.name = "hero legs";
+        if(this.debugMode)console.groupEnd();
     }
 
     initHouses() {
+        if(this.debugMode)console.groupCollapsed("GAME.initHouses");
         this.houseGroup = new THREE.Group();
         this.houseGroup.name = "houseGroup";
         this.scene.add(this.houseGroup);
@@ -220,8 +219,10 @@ class Game {
         this.houses.forEach(houseData => {
             this.initHouse(houseData);
         });
+        if(this.debugMode)console.groupEnd();
     }
     initHouse({ x, y, z, modelJsonObj }) {
+        if(this.debugMode)console.groupCollapsed("GAME.initHouse");
         const _y = y ?? this.getMapHeight({ x, z }, false);
 
         const houseInstance = new CrappyObjectInstance(modelJsonObj);
@@ -262,10 +263,38 @@ class Game {
             minigameIndex: this.placedHouseArr.length - 1,
             pivot: houseInstance.groups.pivot
         });
-
+        if(this.debugMode)console.groupEnd();
+    }
+    initTrees() {
+        if(this.debugMode)console.groupCollapsed("GAME.initTrees");
+        this.treeGroup = new THREE.Group();
+        this.treeGroup.name = "treeGroup";
+        this.scene.add(this.treeGroup);
+        this.objectArr.push(this.treeGroup);
+        this.trees.forEach(treeData => {
+            this.initTree(treeData);
+        });
+        if(this.debugMode)console.groupEnd();
+    }
+    initTree({ x, y, z, modelJsonObj }) {
+        if(this.debugMode)console.groupCollapsed("GAME.initTree");
+        const y0 = this.getMapHeight({ x, z }, false);
+        console.log("y0:", y0);
+        const _y = y ?? this.getMapHeight({ x, z }, false);
+        const treeInstance = new CrappyObjectInstance(modelJsonObj, TREE_TYPES);
+        treeInstance.root.scale.multiplyScalar(this.treeScale);
+        this.treeGroup.add(treeInstance.root);
+        this.placedTreeArr.push(treeInstance);
+        console.log("x, _y, z:", x, _y, z);
+        treeInstance.root.position.set(x, _y, z);
+        treeInstance.root.scale.multiplyScalar(10);
+        const treeId = "tree-" + this.placedTreeArr.length;
+        treeInstance.root.name = treeId;
+        if(this.debugMode)console.groupEnd();
     }
 
     initLighting() {
+        if(this.debugMode)console.groupCollapsed("GAME.initLighting");
 
         this.globalLight = new THREE.AmbientLight(0xffffff, 0.4);
         this.globalLight.name = "globalLight";
@@ -285,16 +314,30 @@ class Game {
         this.shadowLight.shadow.mapSize.height = 128;
         this.shadowLight.name = "shadowLight";
         this.scene.add(this.shadowLight);
+        if(this.debugMode)console.groupEnd();
 
+    }
+    
+    initOverlays() {
+        if(this.debugMode)console.groupCollapsed("GAME.initOverlays");
+        this.noiseCanvas = document.createElement("canvas");
+        this.noiseCanvas.width = 64;
+        this.noiseCanvas.height = 64;
+        this.noiseCtx = this.noiseCanvas.getContext("2d");
+        if(this.debugMode)console.groupEnd();
     }
 
     getMapHeight(position, isPlayer = true) {
+        if(this.debugMode)console.groupCollapsed("GAME.getMapHeight");
         if (!this.stx) {
             // if no stx, create it
-            const stxImg = this.groundplane.material.displacementMap.image;
+            const stxImg = this.heightMapImg;
 
             // if no stx image, return 0
-            if (!stxImg) return 0;
+            if (!stxImg) {
+                console.warn('No height map image found for getMapHeight');
+                return 0;
+            }
 
             const stxCanvas = document.createElement("canvas");
             stxCanvas.width = stxImg.width;
@@ -323,6 +366,7 @@ class Game {
         value = -360 + 400 * (value / 255);
 
         if (value < -300) value = -300;
+        if(this.debugMode)console.groupEnd();
         return value;
     }
 
@@ -334,6 +378,7 @@ class Game {
     }
 
     checkDoors(time) {
+        if(this.debugMode)console.groupCollapsed("GAME.checkDoors");
         const { hero, doorDataList, player } = this;
         let staticDist = 70;
         let entranceTimeSec = 0.7;
@@ -379,9 +424,11 @@ class Game {
             this.noiseCtx.canvas.style.opacity = 0;
             this.doorEntranceTime = null;
         }
+        if(this.debugMode)console.groupEnd();
     }
 
     applyRandomNoiseEffect(ctx) {
+        if(this.debugMode)console.groupCollapsed("GAME.applyRandomNoiseEffect");
         if (!ctx) return;
         const w = ctx.canvas.width,
             h = ctx.canvas.height,
@@ -392,9 +439,16 @@ class Game {
         for (; i < len; i++)
             if (Math.random() < 0.5) buffer32[i] = 0xffffffff;
         ctx.putImageData(iData, 0, 0);
+        if(this.debugMode)console.groupEnd();
+    }
+
+    
+    setActiveMinigame(minigameInfo) {
+        this.activeMinigameInfo = minigameInfo;
     }
 
     startMinigame(i, time) {
+        if(this.debugMode)console.groupCollapsed("GAME.startMinigame");
         if (this.activeMinigameInfo) {
             this.activeMinigameInfo.canvas.remove();
         }
@@ -433,6 +487,7 @@ class Game {
             canvas,
             handler: new handlerClass(canvas, onQuit),
         };
+        if(this.debugMode)console.groupEnd();
     }
 
     updateMinigame(time) {

@@ -3,9 +3,10 @@ class CrappyObjectInstance  {
     groups = {};
     materialInstances = {};
 
-    constructor(state) {
+    constructor(state, typeMap = {}) {
         this.root = new THREE.Group();
         this.state = state;
+        this.typeMap = typeMap;
         this.instantiate();
     }
 
@@ -29,6 +30,10 @@ class CrappyObjectInstance  {
     getMatInstance(id){
         if (!id) id = 'default';
         const mat = this.state.materials[id];
+
+        if (this.typeMap[id]) {
+            return this.typeMap[id].material;
+        }
 
         if (!this.materialInstances[id]) this.materialInstances[id]= new THREE.MeshBasicMaterial({ color: mat.color });
         //if (!this.materialInstances[id]) this.materialInstances[id]= new THREE.MeshStandardMaterial({ color: mat.color });
