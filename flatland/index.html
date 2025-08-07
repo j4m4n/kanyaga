@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <title>Flatland</title>
+        <title>Flatland – cleaned up</title>
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <style>
             @font-face {
@@ -229,7 +229,7 @@
                     dir.shadow.mapSize.set(32, 32);
                     dir.shadow.camera.near = 0.5;
                     dir.shadow.camera.far = 500;
-                    scene.add(amb, dir);
+                    scene.add(amb);
 
                     const tex = new THREE.CanvasTexture(colCanvas);
                     tex.magFilter = tex.minFilter = THREE.NearestFilter;
@@ -257,6 +257,8 @@
 
                     player = new THREE.Group();
                     scene.add(player);
+                    // add light to player
+                    player.add(dir);
 
                     const headGeo = new THREE.SphereGeometry(3, 12, 12);
                     const headMat = new THREE.MeshStandardMaterial({
