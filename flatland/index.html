@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Flatland – cleaned up</title>
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <style>
+            /* ------------------------------------------------------------------ */
+            /*   Global styles – keep it minimal                                    */
+            /* ------------------------------------------------------------------ */
+            @font-face {
+                font-family: "prstartk";
+                src:
+                    url("fonts/prstartk-webfont.woff2") format("woff2"),
+                    url("fonts/prstartk-webfont.woff") format("woff");
+                font-weight: normal;
+                font-style: normal;
+            }
+
+            html,
+            body {
+                margin: 0;
+                height: 100%;
+                overflow: hidden;
+                background: #ff0000;
+                color: #46261d;
+                user-select: none;
+                font-family: "prstartk";
+            }
+            canvas {
+                image-rendering: pixelated;
+            }
+
+            /* debug canvases – only one visible at a time                     */
+            #colcanvas,
+            #hitcanvas {
+                position: absolute;
+                top: -100px;
+                left: -100px;
+                width: 512px;
+                height: 512px;
+                background: #222;
+                transform: scale(0.5);
+            }
+            .on #colcanvas,
+            .off #hitcanvas {
+                display: block;
+            }
+            .off #colcanvas,
+            .on #hitcanvas {
+                display: none;
+            }
+
+            /* HUD & button                                                   */
+            #hud {
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 99;
+                padding: 8px;
+                background: rgba(0, 0, 0, 0.5);
+                color: #fff;
+                font-family: "prstartk";
+            }
+            #btn {
+                background: transparent;
+                border: none;
+                color: #fff;
+                padding: 12px;
+                cursor: pointer;
+                outline: none;
+                font-family: "prstartk";
+            }
+            #btn:active {
+                color: #ffff00;
+            }
+            #btn.on {
+                background: #ff0000;
+            }
+        </style>
+    </head>
+    <body class="on">
+        <div id="hud">
+            <button id="btn">x</button>
+            <p id="xvar">xvar</p>
+        </div>
+
+        <!-- off‑screen canvases (texture & collision map) -->
+        <canvas id="colcanvas" width="512" height="512"></canvas>
+        <canvas id="hitcanvas" width="512" height="512"></canvas>
+
+        <!-- three.js will inject its own canvas -->
+        <div id="threecnv"></div>
+
+        <!-- ----------------------------------------------------------------- -->
+        <!--   External libraries – CDN versions make the file portable            -->
+        <!-- ----------------------------------------------------------------- -->
+        <script src="js/three.min.js"></script>
+        <script src="js/nipplejs.min.js"></script>
+
+        <script type="module">
+            /* --------------------------------------------------------------------- */
+            /*   Everything lives inside an IIFE – no globals are leaked               */
+            /* --------------------------------------------------------------------- */
+            (() => {
+                /* ---------- constants ---------- */
+                const CANVAS_SIZE = 512;
+                const HALF_CANVAS = CANVAS_SIZE / 2;
+                const PLAYER_MAX_SPEED = 1; // units per frame (tuned in updateloop)
+                const JOYSTICK_MAX_SPEED = 1; // same speed limit for the virtual joystick
+
+                /* ---------- DOM elements ---------- */
+                const hudBtn = document.getElementById("btn");
+                const hudInfo = document.getElementById("xvar");
+
+                const colCanvas = document.getElementById("colcanvas");
+                const colCtx = colCanvas.getContext("2d");
+
+                const hitCanvas = document.getElementById("hitcanvas");
+                const hitCtx = hitCanvas.getContext("2d", {
+                    willReadFrequently: true,
+                });
+
+                /* ---------- simple toggle button (show/hide hit‑canvas) ---------- */
+                hudBtn.addEventListener("click", () => {
+                    document.body.classList.toggle("on");
+                    document.body.classList.toggle("off");
+                    hudBtn.classList.toggle("on");
+                });
+
+                /* ---------- keyboard handling ---------- */
+                const keyboard = {
+                    _pressed: {},
+                    LEFT: 37,
+                    UP: 38,
+                    RIGHT: 39,
+                    DOWN: 40,
+                    isDown(key) {
+                        return this._pressed[key];
+                    },
+                    onKeyDown(e) {
+                        this._pressed[e.keyCode] = true;
+                    },
+                    onKeyUp(e) {
+                        delete this._pressed[e.keyCode];
+                    },
+                };
+                window.addEventListener("keydown", (e) =>
+                    keyboard.onKeyDown(e),
+                );
+                window.addEventListener("keyup", (e) => keyboard.onKeyUp(e));
+
+                /* ---------- helper: constrain a vector to a max length ---------- */
+                const limitVelocity = (vx, vy, max) => {
+                    const len = Math.hypot(vx, vy);
+                    if (!len) return { vx: 0, vy: 0 };
+                    const scale = Math.min(len, max) / len;
+                    return { vx: vx * scale, vy: vy * scale };
+                };
+
+                /* ---------- draw a pixel‑perfect circle (used for collision map) ---------- */
+                const aliasedCircle = (ctx, xc, yc, r) => {
+                    let x = r,
+                        y = 0,
+                        cd = 0;
+                    ctx.rect(xc - x, yc, r << 1, 1); // centre line
+                    while (x > y) {
+                        cd -= --x - ++y;
+                        if (cd < 0) cd += x++;
+                        ctx.rect(xc - y, yc - x, y << 1, 1); // upper‑left/right quadrants
+                        ctx.rect(xc - x, yc - y, x << 1, 1);
+                        ctx.rect(xc - x, yc + y, x << 1, 1);
+                        ctx.rect(xc - y, yc + x, y << 1, 1);
+                    }
+                };
+
+                /* ---------- initialise the two 2‑D canvases ---------- */
+                // hit‑canvas: white background with a black circle (playable area)
+                hitCtx.fillStyle = "#fff";
+                hitCtx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                hitCtx.fillStyle = "#000";
+                hitCtx.beginPath();
+                aliasedCircle(
+                    hitCtx,
+                    HALF_CANVAS,
+                    HALF_CANVAS,
+                    HALF_CANVAS - 2,
+                );
+                hitCtx.fill();
+
+                // col‑canvas: simple solid colour – later overwritten by level‑col.png
+                colCtx.fillStyle = "#e60087";
+                colCtx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+                /* ---------- preload images (collision map & ground texture) ---------- */
+                const imgBase = new Image(); // level‑1base.png → hit‑canvas
+                const imgTex = new Image(); // level‑col.png  → col‑canvas
+
+                const loadImg = (img, src, onload) => {
+                    return new Promise((res, rej) => {
+                        img.onload = () => {
+                            onload();
+                            res();
+                        };
+                        img.onerror = rej;
+                        img.src = src;
+                    });
+                };
+
+                Promise.all([
+                    loadImg(imgBase, "level-1base.png", () =>
+                        hitCtx.drawImage(imgBase, 0, 0),
+                    ),
+                    loadImg(imgTex, "level-col.png", () =>
+                        colCtx.drawImage(imgTex, 0, 0),
+                    ),
+                ])
+                    .then(() => {
+                        // the textures have been drawn → we can now start the 3‑D part
+                        initThree();
+                        animate();
+                    })
+                    .catch((err) =>
+                        console.error("Failed to load level images", err),
+                    );
+
+                /* ----------------------------------------------------------------- */
+                /*   THREE.js scene – everything lives under a single global object  */
+                /* ----------------------------------------------------------------- */
+                let scene, camera, renderer, player, cursor, colPlane;
+
+                const initThree = () => {
+                    // ----- renderer ----- (canvas is appended automatically)
+                    renderer = new THREE.WebGLRenderer({
+                        antialias: true,
+                        alpha: true,
+                    });
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                    renderer.shadowMap.enabled = true;
+                    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                    document.body.appendChild(renderer.domElement);
+
+                    // ----- scene & camera -----
+                    scene = new THREE.Scene();
+                    camera = new THREE.PerspectiveCamera(
+                        75,
+                        window.innerWidth / window.innerHeight,
+                        1,
+                        2000,
+                    );
+                    camera.position.set(0, 50, 50);
+                    camera.lookAt(0, 0, 0);
+
+                    // ----- lights -----
+                    const amb = new THREE.AmbientLight(0xeeeeee, 0.7);
+                    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+                    dir.position.set(0, 50, 0);
+                    dir.castShadow = true;
+                    dir.shadow.mapSize.set(32, 32);
+                    dir.shadow.camera.near = 0.5;
+                    dir.shadow.camera.far = 500;
+                    scene.add(amb, dir);
+
+                    // ----- ground plane (uses colCanvas as texture) -----
+                    const tex = new THREE.CanvasTexture(colCanvas);
+                    tex.magFilter = tex.minFilter = THREE.NearestFilter;
+
+                    const geometry = new THREE.PlaneGeometry(
+                        512,
+                        512,
+                        512,
+                        512,
+                    );
+                    const material = new THREE.MeshStandardMaterial({
+                        map: tex,
+                        metalness: 0.2,
+                        displacementMap: new THREE.TextureLoader().load(
+                            "level3D.png",
+                        ),
+                        displacementScale: 20,
+                    });
+                    colPlane = new THREE.Mesh(geometry, material);
+                    colPlane.rotation.x = -Math.PI / 2;
+                    colPlane.position.y = -10;
+                    colPlane.castShadow = true;
+                    colPlane.receiveShadow = true;
+                    scene.add(colPlane);
+
+                    // ----- player (a simple sphere + direction arrow) -----
+                    player = new THREE.Group();
+                    scene.add(player);
+
+                    const headGeo = new THREE.SphereGeometry(3, 12, 12);
+                    const headMat = new THREE.MeshStandardMaterial({
+                        color: 0xee0000,
+                    });
+                    const head = new THREE.Mesh(headGeo, headMat);
+                    head.position.set(0, 10, 0);
+                    head.castShadow = true;
+                    player.add(head);
+
+                    const arrowGeo = new THREE.CircleGeometry(1, 3);
+                    const arrowMat = new THREE.MeshBasicMaterial({
+                        color: 0xffff00,
+                    });
+                    const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+                    arrow.rotation.set(-Math.PI / 2, 0, -Math.PI / 6);
+                    arrow.position.set(0, 1, -5);
+                    player.add(arrow);
+
+                    // ----- cursor (invisible 3‑D point that the player follows) -----
+                    cursor = new THREE.Group();
+                    scene.add(cursor);
+
+                    // ----- target (used only for lookAt) -----
+                    const target = new THREE.Group();
+                    target.position.y = 1;
+                    cursor.add(target);
+                    player.userData.target = target;
+
+                    // ----- responsive resizing -----
+                    window.addEventListener("resize", onResize);
+                    window.addEventListener("wheel", onWheel);
+                };
+
+                const onResize = () => {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                };
+
+                const onWheel = (e) => {
+                    // simple zoom – clamp to a reasonable range
+                    camera.position.y = THREE.MathUtils.clamp(
+                        camera.position.y - e.deltaY * 0.05,
+                        20,
+                        250,
+                    );
+                    camera.position.z = camera.position.y;
+                };
+
+                /* ----------------------------------------------------------------- */
+                /*   Game state & logic                                              */
+                /* ----------------------------------------------------------------- */
+                const hero = {
+                    allowMove: true,
+                    moving: false,
+                    maxSpeed: PLAYER_MAX_SPEED,
+                    posX: 0,
+                    posZ: 0,
+                    vx: 0,
+                    vy: 0,
+                    lastPixel: 0, // colour under the player in the previous frame
+                };
+
+                const updateloop = () => {
+                    /* ----- keyboard movement ----- */
+                    if (hero.allowMove) {
+                        if (keyboard.isDown(keyboard.LEFT))
+                            cursor.position.x -= hero.maxSpeed;
+                        if (keyboard.isDown(keyboard.RIGHT))
+                            cursor.position.x += hero.maxSpeed;
+                        if (keyboard.isDown(keyboard.UP))
+                            cursor.position.z -= hero.maxSpeed;
+                        if (keyboard.isDown(keyboard.DOWN))
+                            cursor.position.z += hero.maxSpeed;
+                    }
+
+                    /* ----- joystick movement (virtual joystick) ----- */
+                    if (hero.moving) {
+                        cursor.position.x += hero.vx;
+                        cursor.position.z += hero.vy;
+                    }
+
+                    /* ----- smooth player follow ----- */
+                    player.position.x +=
+                        (cursor.position.x - player.position.x) * 0.3;
+                    player.position.z +=
+                        (cursor.position.z - player.position.z) * 0.3;
+
+                    /* ----- look direction (always point at the target) ----- */
+                    player.lookAt(
+                        player.userData.target.position.x,
+                        0,
+                        player.userData.target.position.z,
+                    );
+
+                    /* ----- collision check – read the pixel under the cursor ----- */
+                    const u = HALF_CANVAS + Math.floor(cursor.position.x);
+                    const v = HALF_CANVAS + Math.floor(cursor.position.z);
+                    const pixel = hitCtx.getImageData(u, v, 1, 1).data[0]; // 0 = black (free), 255 = white (blocked)
+
+                    if (pixel > 254) {
+                        // hit a white (blocked) pixel
+                        cursor.position.x = hero.posX;
+                        cursor.position.z = hero.posZ;
+                        hero.allowMove = false;
+                    } else {
+                        hero.posX = cursor.position.x;
+                        hero.posZ = cursor.position.z;
+                        hero.allowMove = true;
+                    }
+
+                    /* ----- HUD update (show the colour value) ----- */
+                    if (hero.lastPixel !== pixel) {
+                        if (pixel > 99) {
+                            // future: show NPC name – NPCs are stored in npcArray
+                            // hudInfo.textContent = npcArray[pixel - 100].name;
+                        } else {
+                            hudInfo.textContent = pixel;
+                        }
+                        hero.lastPixel = pixel;
+                    }
+
+                    /* ----- keep the 3‑D world centred on the player ----- */
+                    scene.position.set(
+                        -player.position.x,
+                        0,
+                        -player.position.z,
+                    );
+                };
+
+                /* ----------------------------------------------------------------- */
+                /*   Joystick (nipple.js) – maps joystick movement to hero velocity   */
+                /* ----------------------------------------------------------------- */
+                const initJoystick = () => {
+                    const stick = nipplejs.create({
+                        mode: "dynamic",
+                        dataOnly: true,
+                        zone: renderer.domElement, // the three.js canvas
+                    });
+
+                    stick.on("move", (e, data) => {
+                        const vx = data.force * Math.cos(data.angle.radian);
+                        const vy = -data.force * Math.sin(data.angle.radian);
+                        const limited = limitVelocity(
+                            vx,
+                            vy,
+                            JOYSTICK_MAX_SPEED,
+                        );
+                        hero.vx = limited.vx;
+                        hero.vy = limited.vy;
+                        hero.moving = true;
+
+                        // rotate player to face movement direction
+                        const angle =
+                            Math.atan2(hero.vy, hero.vx) + Math.PI * 0.5;
+                        player.rotation.y = -angle;
+                    });
+
+                    stick.on("end", () => {
+                        hero.moving = false;
+                        hero.vx = hero.vy = 0;
+                    });
+                };
+
+                /* ----------------------------------------------------------------- */
+                /*   Animation loop – three.js render + game logic                   */
+                /* ----------------------------------------------------------------- */
+                const animate = () => {
+                    requestAnimationFrame(animate);
+                    updateloop();
+                    renderer.render(scene, camera);
+                };
+
+                /* ----------------------------------------------------------------- */
+                /*   Kick‑off – after the images have been drawn we can start the   */
+                /*   joystick, then the animation loop.                              */
+                /* ----------------------------------------------------------------- */
+                const startGame = () => {
+                    initJoystick();
+                };
+
+                // The Promise chain that loads the level images already called initThree()
+                // and animate().  All we have to do now is install the joystick.
+                Promise.all([])
+                    .then(startGame)
+                    .catch(() => {}); // a dummy promise just to keep the pattern
+            })();
+        </script>
+    </body>
+</html>
