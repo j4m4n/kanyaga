@@ -1,81 +1,173 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-  <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, user-scalable=no" />
-    <title>64px</title>
-    <style>
-      @font-face {
-        font-family: "PICO-8";
-        src: url("font/PICO-8.ttf") format("truetype");
-        font-weight: normal;
-        font-style: normal;
-      }
-      body {
-        margin: 0;
-        background: #1a1a1b;
-        overflow: hidden;
-        cursor: crosshair;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        font-family: "PICO-8", monospace;
-        color: #eee;
-      }
-      canvas {
-        image-rendering: crisp-edges;
-        image-rendering: pixelated;
-        transform: scale(4);
-      }
-      #hud {
-        position: absolute;
-        top: 4px;
-        background-color: #000;
-        display: block;
-        padding: 4px;
-      }
-      #hud * {
-        margin: 0;
-        padding: 0;
-      }
-    </style>
-  </head>
-  <body>
-    <script src="js/three.min.js"></script>
-    <script>
-      // start scene
-      const scene = new THREE.Scene();
+    <head>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, user-scalable=no" />
+        <title>64px</title>
+        <style>
+            body {
+                margin: 0;
+                background: #1a1a1b;
+                overflow: hidden;
+                cursor: crosshair;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                font-family: monospace;
+                color: #eee;
+            }
+            canvas {
+                image-rendering: crisp-edges;
+                image-rendering: pixelated;
+                transform: scale(8);
+                border: rgba(0, 0, 0, 0.2) 1px solid;
+            }
+            #hud {
+                position: absolute;
+                top: 4px;
+                background-color: #000;
+                display: block;
+                padding: 4px;
+            }
+            #hud * {
+                margin: 0;
+                padding: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <script src="js/three.min.js"></script>
+        <script>
+            var time = 0;
+            var player = {
+                width: 192,
+                size: 32,
+                count: 6,
+                fps: 16,
+                moving: false,
+            };
+            const keyboard = {
+                _pressed: {},
+                LEFT: 37,
+                UP: 38,
+                RIGHT: 39,
+                DOWN: 40,
+                isDown(key) {
+                    fg.material.map = runtex;
+                    player.moving = true;
+                    fg.map = idletex;
+                    fg.material.needsUpdate = true;
+                    return this._pressed[key];
+                },
+                onKeyDown(e) {
+                    player.moving = true;
 
-      // renderer
-      const renderer = new THREE.WebGLRenderer();
-      renderer.setPixelRatio(window.devicePixelRatio);
-      renderer.setSize(64, 64);
-      document.body.appendChild(renderer.domElement);
+                    this._pressed[e.keyCode] = true;
+                },
+                onKeyUp(e) {
+                    fg.material.map = idletex;
+                    fg.material.needsUpdate = true;
+                    player.moving = false;
+                    delete this._pressed[e.keyCode];
+                },
+            };
+            window.addEventListener("keydown", (e) => keyboard.onKeyDown(e));
+            window.addEventListener("keyup", (e) => keyboard.onKeyUp(e));
 
-      // camera
-      const camera = new THREE.PerspectiveCamera(75,window.innerWidth / window.innerHeight, 0.1, 1000 );
-      camera.aspect = 1 / 1;
-      camera.updateProjectionMatrix();
-      camera.position.z = 5;
+            function sorttexture(argument) {
+                argument.magFilter = THREE.NearestFilter;
+                argument.minFilter = THREE.NearestFilter;
+            }
 
-      // cube
-      const geometry = new THREE.BoxGeometry(1, 1, 1);
-      const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-      const cube = new THREE.Mesh(geometry, material);
-      scene.add(cube);
-      
-      // loop
-      function animate() {
-        requestAnimationFrame(animate);
-        cube.rotation.x += 0.01;
-        cube.rotation.y += 0.01;
-        renderer.render(scene, camera);
-      }
+            // start scene
+            const scene = new THREE.Scene();
+            const clock = new THREE.Clock();
 
-      // start
-      animate();
-    </script>
-  </body>
+            // renderer
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(64, 64);
+            document.body.appendChild(renderer.domElement);
+
+            // camera
+            const camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000,
+            );
+
+            // camera
+            camera.aspect = 1 / 1;
+            camera.updateProjectionMatrix();
+            camera.position.z = 10;
+
+            // bg
+            const tex = new THREE.TextureLoader().load("assets/bg.png");
+            const geometry = new THREE.PlaneGeometry(64, 64);
+            const material = new THREE.MeshBasicMaterial({
+                map: tex,
+                // transparent: true,
+                // alphaTest: 0.2,
+            });
+            sorttexture(tex);
+            const bg = new THREE.Mesh(geometry, material);
+            tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+            bg.position.z = -32;
+            scene.add(bg);
+
+            // fg
+            idletex = new THREE.TextureLoader().load("assets/twiggyidle.png");
+            runtex = new THREE.TextureLoader().load("assets/twiggyrun.png");
+            runtex.repeat.x = 1 / 6;
+            sorttexture(idletex);
+            sorttexture(runtex);
+            const fggeometry = new THREE.PlaneGeometry(32, 32);
+            const fgmaterial = new THREE.MeshBasicMaterial({
+                map: idletex,
+                transparent: true,
+                alphaTest: 0.2,
+            });
+            sorttexture(idletex);
+            const fg = new THREE.Mesh(fggeometry, fgmaterial);
+            fg.position.z = -32;
+            scene.add(fg);
+
+            function updateplayer() {
+                if (keyboard.isDown(keyboard.LEFT)) {
+                    fg.position.x -= 1;
+                } else if (keyboard.isDown(keyboard.RIGHT)) {
+                    fg.position.x -= -1;
+                } else if (keyboard.isDown(keyboard.UP)) {
+                    fg.position.y += 1;
+                } else if (keyboard.isDown(keyboard.DOWN)) {
+                    fg.position.y -= 1;
+                } else {
+                    fg.material.map = idletex;
+                }
+                camera.position.x = fg.position.x;
+                camera.position.y = fg.position.y;
+
+                if (player.anim === true) {
+                    var t = clock.getElapsedTime();
+                    fg.material.map.offset.x =
+                        (Math.floor((t * player.fps) % player.count) *
+                            player.size) /
+                        player.width;
+                }
+            }
+
+            // loop
+            function animate() {
+                requestAnimationFrame(animate);
+                renderer.render(scene, camera);
+                updateplayer();
+            }
+
+            // start
+            animate();
+        </script>
+    </body>
 </html>
