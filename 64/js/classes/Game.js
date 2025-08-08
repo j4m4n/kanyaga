@@ -50,10 +50,11 @@ class Game {
 
         this.activeMinigameInfo = null;
 
-        this.doorEntranceTime = null;
+        this.triggeredDoorway = null;
 
         this.minigameDataMap = options.minigames;
 
+        this.sceneTransitions = [];
         this.placedHouseArr = [];
         this.placedTreeArr = [];
 
@@ -239,7 +240,6 @@ class Game {
         let pivot = new THREE.Group();
         pivot.name = houseId + '-pivot';
         door.parent.add(pivot);
-        console.log('ok: ', door.parent.parent);
         pivot.position.copy(door.position);
         pivot.position.x -= 2;
         door.position.set(2, 0, 0);
@@ -380,49 +380,49 @@ class Game {
     checkDoors(time) {
         if(this.debugMode)console.groupCollapsed("GAME.checkDoors");
         const { hero, doorDataList, player } = this;
-        let staticDist = 70;
+        let entranceDist = 70;
         let entranceTimeSec = 0.7;
 
-        let nearestDoor = null;
-        for (let i = 0; i < doorDataList.length; i++) {
-            let doorData = doorDataList[i];
-            let doorPos = new THREE.Vector3();
-            doorData.obj.getWorldPosition(doorPos);
 
-            let dist = doorPos.distanceTo(hero.position);
+        if (this.triggeredDoorway) {
+            let doorway = this.triggeredDoorway;
+            if (doorway.doorData.pivot) {
 
-            if (dist < staticDist) {
-                nearestDoor = { doorData, dist }
-                break;
-            }
-            if (doorData.pivot) {
-                doorData.pivot.rotation.y = 0;
-            }
-        }
-
-        if (nearestDoor) {
-            if (!this.doorEntranceTime) this.doorEntranceTime = time;
-            this.applyRandomNoiseEffect(this.noiseCtx);
-
-            let opacity = (time - this.doorEntranceTime) / entranceTimeSec;
-            //noiseCtx.canvas.style.opacity = opacity;
-
-            if (nearestDoor.doorData.pivot) {
-
-                nearestDoor.doorData.pivot.rotation.y = -1.571 * opacity;
+                doorway.doorData.pivot.rotation.y = -1.571 * opacity;
             }
 
-            if (time - this.doorEntranceTime > entranceTimeSec) {
-                // enter the door's minigame
-                let minigameIndex = nearestDoor.doorData.minigameIndex;
+            if (time - doorway.triggerTime > entranceTimeSec) {
+                // enterthe door's minigame
+                let minigameIndex = doorway.doorData.minigameIndex;
                 this.startMinigame(minigameIndex, time);
-                nearestDoor.doorData.obj.rotation.y = 0;
 
-                this.doorEntranceTime = null;
+                if (doorway.doorData.pivot) {
+                    doorway.doorData.pivot.rotation.y = 0;
+                }
+
+                this.lastTriggeredDoorway = this.triggeredDoorway;
+                this.triggeredDoorway = null;
             }
         } else {
-            this.noiseCtx.canvas.style.opacity = 0;
-            this.doorEntranceTime = null;
+            // No currently triggered doorway, check if we any are close enough to trigger
+            for (let i = 0; i < doorDataList.length; i++) {
+                let doorData = doorDataList[i];
+                let doorPos = new THREE.Vector3();
+                doorData.obj.getWorldPosition(doorPos);
+
+                // Prevent entering the same house twice -- TODO remove this later when a button press enters house instead of proximity auto-entrance
+                if (this.lastTriggeredDoorway && this.lastTriggeredDoorway.doorData.houseId == doorData.houseId) continue;
+
+                let dist = doorPos.distanceTo(hero.position);
+                if (dist > entranceDist) continue;
+
+                this.triggeredDoorway = {
+                    doorData,
+                    worldPos: doorPos,
+                    triggerTime: TIME
+                };
+                this.sceneTransitions.push(new SceneTransition(entranceTimeSec, 'circle', 'in'));
+            }
         }
         if(this.debugMode)console.groupEnd();
     }
@@ -456,8 +456,6 @@ class Game {
             alert(
                 `Minigame for index ${i} not found.\n\n...that means this house is haunted, RUN AWAY!`,
             );
-            noiseCtx.canvas.style.opacity = 0;
-            this.doorEntranceTime = null;
         };
         if (this.minigameDataMap[i] === undefined) {
             debugger;
@@ -479,7 +477,10 @@ class Game {
             if (this.activeMinigameInfo) this.activeMinigameInfo.canvas.remove();
             this.activeMinigameInfo = null;
             this.player.z += 6;
+            this.sceneTransitions.push(new SceneTransition(1, 'circle', 'out'));
         };
+
+        this.sceneTransitions.push(new SceneTransition(1, 'circle', 'out'));
 
         this.activeMinigameInfo = {
             index: i,
@@ -593,6 +594,10 @@ class Game {
                 DEBUG_UI.update(time);
             }
         }
+
+        this.sceneTransitions.forEach(t => t.update());
+        this.sceneTransitions = this.sceneTransitions.filter(t => !t.isDone);
+
         this.renderer.render(this.scene, this.camera);
     }
 };

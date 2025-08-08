@@ -29,8 +29,7 @@ canvas {
   z-index: 30; 
   background: #222;
 }
-#noisetex {
-  background: #222;
+.scene-transition {
   z-index: 40; 
 }
 #lvlbump, #lvlbump-debug {
