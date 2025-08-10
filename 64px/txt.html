@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Canvas Template</title>
+        <style>
+            #cnv,
+            #noise {
+                display: none;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                margin: 0;
+                background: #1a1a1b;
+                overflow: hidden;
+                cursor: crosshair;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                font-family: monospace;
+                color: #eee;
+                user-select: none;
+            }
+            canvas {
+                position: fixed;
+                image-rendering: crisp-edges;
+                image-rendering: pixelated;
+                transform: scale(6);
+            }
+        </style>
+        <script src="txt_files/image_parser.js"></script>
+        <script src="txt_files/PIXEL_FONT_boxyMin.js"></script>
+        <script src="txt_files/PIXEL_TEXT.js"></script>
+    </head>
+
+    <body>
+        <script>
+            const text = `Hello. The quick brown fox... jumps over the lazy dog. THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG. 0123456789!?@#$%^&*()-_=+[]{};:'",.<>/\\|~\``;
+            const canvas = PIXEL_TEXT.textCanvas(
+                text,
+                64, // width
+                5, // rowHeight
+                {
+                    0: "#000000",
+                    1: "#FFFFFF",
+                    2: "#CCCCCC",
+                },
+                1, // kerning
+                2, // rowKerning
+            );
+            const ctx = canvas.getContext("2d");
+            canvas.id = "cnv";
+            ctx.imageSmoothingEnabled = false;
+
+            // noise
+            function noise(ctx) {
+                const w = ctx.canvas.width,
+                    h = ctx.canvas.height,
+                    iData = ctx.createImageData(w, h),
+                    buffer32 = new Uint32Array(iData.data.buffer),
+                    len = buffer32.length;
+                let i = 0;
+                for (; i < len; i++)
+                    if (Math.random() < 0.5) buffer32[i] = 0xffffffff;
+                ctx.putImageData(iData, 0, 0);
+            }
+
+            document.body.append(canvas);
+
+            let compcanvas, cctx, noisecanvas, ntx;
+
+            function makecomposite() {
+                compcanvas = document.createElement("canvas");
+                cctx = compcanvas.getContext("2d");
+                compcanvas.id = "composite";
+                compcanvas.width = compcanvas.height = 64;
+                document.body.appendChild(compcanvas);
+                cctx.fillStyle = "blue";
+                cctx.fillRect(0, 0, 64, 64);
+            }
+
+            function makenoise() {
+                noisecanvas = document.createElement("canvas");
+                ntx = noisecanvas.getContext("2d");
+                noisecanvas.id = "noise";
+                noisecanvas.width = noisecanvas.height = 64;
+                document.body.appendChild(noisecanvas);
+                noise(ntx);
+            }
+
+            // merge
+            function merge() {
+                cctx.clearRect(0, 0, compcanvas.width, compcanvas.height);
+                cctx.fillStyle = "black";
+                cctx.fillRect(0, 0, 64, 64);
+                cctx.globalAlpha = 0.7;
+                cctx.drawImage(canvas, 0, 0);
+                cctx.globalAlpha = 0.3;
+                cctx.drawImage(noisecanvas, 0, 0);
+                cctx.globalAlpha = 1.0;
+            }
+
+            // loop
+            function animate() {
+                requestAnimationFrame(animate);
+                noise(ntx);
+                merge();
+            }
+
+            // start
+            makecomposite();
+            makenoise();
+            animate();
+        </script>
+    </body>
+</html>
