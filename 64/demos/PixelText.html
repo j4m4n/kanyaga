@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Template</title>
+    <!-- base url -->
+    <base href="../">
+
+    <script src="js/utils/image_parser.js"></script>
+
+    <script src="configs/PIXEL_FONT_boxyMin.js"></script>
+    <!-- <script src="configs/PIXEL_FONT_boxy3.js"></script> -->
+    <script src="js/utils/PIXEL_TEXT.js"></script>
+</head>
+
+<body>
+
+</body>
+
+</html>
+<script>
+    const text = `The quick brown fox... jumps over the lazy dog. THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG. 0123456789!?@#$%^&*()-_=+[]{};:'",.<>/\\|~\``;
+    const div = document.createElement('div');
+    div.textContent = text;
+    document.body.appendChild(div);
+    const canvas = PIXEL_TEXT.textCanvas(
+        // `The quick brown fox...`,
+        text,
+        64, // width
+        5, // rowHeight
+        {
+            "0": "#000000",
+            "1": "#FFFFFF",
+            "2": "#CCCCCC"
+        },
+        1, // kerning
+        2, // rowKerning
+    );
+    console.log("canvas:", canvas);
+    document.body.append(
+        scaleCanvas(canvas, 8)
+    );
+</script>
