@@ -104,3 +104,18 @@
   position: absolute;
   z-index: 999;
 }
+#mapSelectDiv button {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid #888;
+  border-radius: 4px;
+  background-color: #eee;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#mapSelectDiv button:hover {
+  background-color: #ddd;
+}
