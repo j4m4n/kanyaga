@@ -31,6 +31,18 @@
                 image-rendering: crisp-edges;
                 image-rendering: pixelated;
                 transform: scale(6);
+                z-index: 3;
+            }
+            #btn {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                border: none;
+                outline: none;
+                z-index: 1;
+                background-color: transparent;
             }
         </style>
         <script src="js/image_parser.js"></script>
@@ -39,10 +51,36 @@
     </head>
 
     <body>
+        <button id="btn" onclick="next()">btn</button>
         <script>
+            function next() {
+                console.log("nxt");
+                thisnumber++;
+                if (thisnumber > txtArray.length) {
+                    thisnumber = 0;
+                }
+                // canvas.text = txtArray[thisnumber];
+                canvas = PIXEL_TEXT.textCanvas(
+                    txtArray[thisnumber],
+                    64,
+                    5,
+                    {
+                        0: "#000000",
+                        1: "#FFFFFF",
+                        2: "#CCCCCC",
+                    },
+                    1,
+                    2,
+                );
+            }
+
+            let compcanvas, cctx, noisecanvas, ntx;
+            let thisnumber = 0;
             const text = `Hello. The quick brown fox... jumps over the lazy dog. THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG. 0123456789!?@#$%^&*()-_=+[]{};:'",.<>/\\|~\``;
+            const txtArray = [text, "one", "two", "three"];
+
             const canvas = PIXEL_TEXT.textCanvas(
-                text,
+                txtArray[0],
                 64, // width
                 5, // rowHeight
                 {
@@ -56,6 +94,7 @@
             const ctx = canvas.getContext("2d");
             canvas.id = "cnv";
             ctx.imageSmoothingEnabled = false;
+            document.body.append(canvas);
 
             // noise
             function noise(ctx) {
@@ -69,10 +108,6 @@
                     if (Math.random() < 0.5) buffer32[i] = 0xffffffff;
                 ctx.putImageData(iData, 0, 0);
             }
-
-            document.body.append(canvas);
-
-            let compcanvas, cctx, noisecanvas, ntx;
 
             function makecomposite() {
                 compcanvas = document.createElement("canvas");
@@ -95,12 +130,12 @@
 
             // merge
             function merge() {
-                cctx.clearRect(0, 0, compcanvas.width, compcanvas.height);
+                // cctx.clearRect(0, 0, compcanvas.width, compcanvas.height);
                 cctx.fillStyle = "black";
                 cctx.fillRect(0, 0, 64, 64);
-                cctx.globalAlpha = 0.7;
+                cctx.globalAlpha = 0.8;
                 cctx.drawImage(canvas, 0, 0);
-                cctx.globalAlpha = 0.3;
+                cctx.globalAlpha = 0.1;
                 cctx.drawImage(noisecanvas, 0, 0);
                 cctx.globalAlpha = 1.0;
             }
