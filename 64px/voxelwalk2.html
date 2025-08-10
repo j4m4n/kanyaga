@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>voxel walker</title>
+</head>
+<style type="text/css">
+body {
+    overflow: hidden;
+    margin: 0;
+    background-color: #000;
+}
+
+#world {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+</style>
+
+<body>
+    <div id="controls">
+
+    </div>
+    <div id="world" />
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.122.0/build/three.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.122.0/examples/js/controls/OrbitControls.js"></script>
+
+<script type="text/javascript">
+//THREEJS
+var scene,
+camera, fieldOfView, aspectRatio, nearPlane, farPlane,
+gobalLight, shadowLight, backLight,
+renderer,
+container,
+controls;
+
+// OTHER VARIABLES
+var PI = Math.PI;
+var hero;
+var container;
+var meshes = [];
+var cnt = 0;
+
+// MATERIALS
+var brownMat = new THREE.MeshLambertMaterial({
+    color: 0x401A07,
+});
+
+var glowMat = new THREE.MeshLambertMaterial({
+    color: 0xffffff
+});
+
+
+//INIT THREE JS, SCREEN AND MOUSE EVENTS
+
+function initScreenAnd3D() {
+    container = document.getElementById('world');
+    HEIGHT = container.offsetHeight;
+    WIDTH = container.width;
+    windowHalfX = WIDTH / 2;
+    windowHalfY = HEIGHT / 2;
+
+    scene = new THREE.Scene();
+
+    // scene.fog = new THREE.Fog(0xd6eae6, 150,300);
+
+    aspectRatio = WIDTH / HEIGHT;
+    fieldOfView = 50;
+    nearPlane = 1;
+    farPlane = 2000;
+    camera = new THREE.PerspectiveCamera(
+        fieldOfView,
+        aspectRatio,
+        nearPlane,
+        farPlane
+        );
+    camera.position.x = 0;
+    camera.position.z = 50;
+    camera.position.y = 1;
+    //camera.lookAt(new THREE.Vector3(0, 30, 0));
+
+    renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: true
+    });
+    renderer.setSize(WIDTH, HEIGHT);
+    renderer.setPixelRatio(window.devicePixelRatio ? window.devicePixelRatio : 1)
+    renderer.shadowMap.enabled = true;
+
+    container.appendChild(renderer.domElement);
+
+    //
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.maxDistance = 200;
+    controls.minDistance = 10;
+    controls.enablePan = false;
+    // controls.maxPolarAngle = Math.PI * 0.45;
+    // controls.target.set( 0, -21, 0 );
+    
+    // dust = new THREE.Group();
+    // dust.name = "dust"
+    // scene.add( dust );
+    // makedust();
+
+
+    window.addEventListener('resize', handleWindowResize, false);
+
+    handleWindowResize();
+}
+
+
+// // make dust once
+// function makedust() {
+//     for ( var i = 0; i < 32; i ++ ) {
+//         geometry = new THREE.BoxBufferGeometry( 0.5, 0.5, 0.5 );
+//         material = new THREE.MeshBasicMaterial({
+//             color:  0xffffff,
+//              // shading: THREE.FlatShading, 
+//             // transparent: true, opacity: 0.1
+//         });
+//         mesh = new THREE.Mesh(geometry, material);
+//         mesh.scale.x = mesh.scale.y = mesh.scale.z = ( Math.random() * 2 );
+//         var x = ( Math.random() - 0.5 ) * 100;
+//         var z = ( Math.random() - 0.5 ) * 100;
+//         mesh.rotateZ( - Math.PI / 2 );
+//         mesh.position.x = x;
+//         mesh.position.z = z;
+//         mesh.position.y = 2;
+//         // leave hole
+//         // if ( Math.abs( x ) < 10 && Math.abs( z ) < 10 ) continue;
+//         mesh.updateMatrix();
+//         dust.add(mesh);
+//         // meshes[ cnt ] = mesh;
+//         // cnt += 1;
+//     }
+//     // if (xb == 'jump') {bblgrw();}
+//     // if (xb == 'go') {bblacc();}
+// //
+// }
+
+
+
+function handleWindowResize() {
+    HEIGHT = container.offsetHeight;
+    WIDTH = container.offsetWidth;
+    windowHalfX = WIDTH / 2;
+    windowHalfY = HEIGHT / 2;
+    renderer.setSize(WIDTH, HEIGHT);
+    camera.aspect = WIDTH / HEIGHT;
+    camera.updateProjectionMatrix();
+}
+
+function createLights() {
+    globalLight = new THREE.AmbientLight(0xffffff, 1);
+    shadowLight = new THREE.DirectionalLight(0xffffff, 1);
+    shadowLight.position.set(10, 8, 8);
+    shadowLight.castShadow = true;
+    shadowLight.shadow.camera.left = -40;
+    shadowLight.shadow.camera.right = 40;
+    shadowLight.shadow.camera.top = 40;
+    shadowLight.shadow.camera.bottom = -40;
+    shadowLight.shadow.camera.near = 1;
+    shadowLight.shadow.camera.far = 1000;
+    shadowLight.shadow.mapSize.width = shadowLight.shadow.mapSize.height = 1024;
+    scene.add(globalLight);
+    scene.add(shadowLight);
+}
+
+Hero = function (options = {}) {
+
+    this.runningCycle = 0;
+    this.mesh = new THREE.Group();
+    this.body = new THREE.Group();
+    this.mesh.add(this.body);
+
+// head
+var headgeometry = new THREE.BoxGeometry( 5, 2, 5 );
+this.head = new THREE.Mesh(headgeometry, brownMat);
+this.head.castShadow = true;
+this.head.position.x = -2.5;
+this.body.add(this.head);
+// glowy head
+var glowheadgeometry = new THREE.BoxGeometry( 5, 5, 5 );
+this.glowhead = new THREE.Mesh(glowheadgeometry, glowMat);
+this.glowhead.castShadow = true;
+this.glowhead.position.y = 5.2;
+this.head.add(this.glowhead);
+
+    // var legGeom 
+    var legGeom = new THREE.BoxGeometry( 3, 6, 3 );
+    // R leg
+    this.legR = new THREE.Mesh(legGeom, brownMat);
+    this.legR.scale.y = -1;
+    this.legR.position.x = 0;
+    this.legR.position.z = 1.6;
+    this.legR.castShadow = true;
+    this.body.add(this.legR);
+    // L leg
+    this.legL = this.legR.clone();
+    this.legL.position.z = -1.6;
+    this.legL.castShadow = true;
+    this.body.add(this.legL);
+// back legs
+    // BR leg
+    this.legBR = this.legR.clone();    
+    this.legBR.scale.set(0.8,1.4,0.8)
+    this.legBR.position.x = -6;
+    this.legBR.position.z = 2.5;
+    this.legBR.castShadow = true;
+    this.body.add(this.legBR);
+    // LR leg
+    this.legBL = this.legR.clone(); 
+    this.legBL.scale.set(0.8,1.4,0.8)
+    this.legBL.position.x = -6;
+    this.legBL.position.z = -2.5;
+    this.legBL.castShadow = true;
+    this.body.add(this.legBL);
+
+    this.body.traverse(function (object) {
+        if (object instanceof THREE.Mesh) {
+            object.castShadow = true;
+            object.receiveShadow = true;
+        }
+    });
+    
+    this.timeScale = 2.5;
+    
+
+    this.legPositionMY = 0.25;
+    this.legPositionMX = 0.66;
+    // this.legRotationMZ = 0.125;   
+    
+    this.bodyRotationMZ = 0.0001;
+    
+    Object.assign(this, options);
+}
+
+Hero.prototype.run = function () {
+    this.runningCycle += .05;
+    var t = this.runningCycle;
+    t *= this.timeScale;
+    t = t % (2 * PI);
+    var amp = 4;
+    this.legR.position.x = Math.floor(Math.cos(t) * amp * this.legPositionMX);
+    this.legR.position.y = Math.floor(Math.max(0, -Math.sin(t) * (amp * this.legPositionMY))+3.2);
+
+    this.legL.position.x = Math.floor(Math.cos(t + PI) * amp * this.legPositionMX);
+    this.legL.position.y = Math.floor(Math.max(0, -Math.sin(t + PI) * (amp * this.legPositionMY))+3.2);
+// flip it
+    if (t > PI) {
+        this.legR.rotation.z = Math.floor(Math.cos(t * 2 + PI / 2) * PI * this).legRotationMZ;
+        this.legL.rotation.z = 0;
+    } else {
+        this.legR.rotation.z = 0;
+        this.legL.rotation.z = Math.floor(Math.cos(t * 2 + PI / 2) * PI * this).legRotationMZ;
+    }
+
+// back legs
+    // this.legBR.rotation.z = (this.legR.rotation.z/4)-0.15;
+    // this.legBL.rotation.z = (this.legL.rotation.z/4)-0.15;
+    this.legBR.position.y = Math.floor((this.legL.position.y*4) - 9);
+    this.legBL.position.y = Math.floor((this.legR.position.y*4) - 9);
+    this.legBL.position.x = Math.floor(-6+this.legR.position.x);
+    this.legBR.position.x = Math.floor(-6+this.legL.position.x);
+
+    // head animations
+    this.head.position.y = Math.floor(5.8+(Math.cos(t*2) * PI)/4);
+    this.glowhead.position.y = Math.floor(6+(Math.cos((t-2)*2) * PI)/2);
+
+}
+
+function createHero() {
+    hero = new Hero({});
+    scene.add(hero.mesh);
+}
+
+function createground() {
+    var geometry = new THREE.CircleBufferGeometry(200, 32);
+
+    // var geometry = new THREE.PlaneBufferGeometry( 200, 200, 1 );
+    var material = new THREE.MeshLambertMaterial({
+        color: 0x220000,
+        side: THREE.DoubleSide
+    });
+    var plane = new THREE.Mesh(geometry, material);
+    plane.rotation.x = -Math.PI / 2;
+    // plane.position.y = -25;
+    plane.receiveShadow = true;
+    scene.add(plane);
+}
+
+
+
+function loop() {
+    hero.run();
+    render();
+    requestAnimationFrame(loop);
+}
+
+function render() {
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('load', init, false);
+
+function init(event) {
+    initScreenAnd3D();
+    createLights();
+    createHero();
+    createground();
+    loop();
+}
+</script>
+</body>
+
+</html>
