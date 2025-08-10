@@ -53,26 +53,20 @@
     <body>
         <button id="btn" onclick="next()">btn</button>
         <script>
-            function next() {
-                console.log("nxt");
-                thisnumber++;
-                if (thisnumber > txtArray.length) {
-                    thisnumber = 0;
-                }
-                // canvas.text = txtArray[thisnumber];
-                canvas = PIXEL_TEXT.textCanvas(
-                    txtArray[thisnumber],
-                    64,
-                    5,
-                    {
-                        0: "#000000",
-                        1: "#FFFFFF",
-                        2: "#CCCCCC",
-                    },
-                    1,
-                    2,
-                );
-            }
+           function next() {
+    console.log("nxt");
+    thisnumber++;
+    if (thisnumber > txtArray.length) {
+        thisnumber = 0;
+    }
+    // canvas.text = txtArray[thisnumber];
+    const ctx = canvas.getContext("2d");
+
+    const txtCanvas = PIXEL_TEXT.textCanvas(txtArray[thisnumber]);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(txtCanvas, 0, 0);
+}
 
             let compcanvas, cctx, noisecanvas, ntx;
             let thisnumber = 0;
