@@ -27,7 +27,6 @@ class Game {
             keyboard: {},
             joystick: {},
             camOffsetY: 0,
-            houses: [],
             minigames: {},
             canvas,
             onQuit
@@ -36,7 +35,7 @@ class Game {
 
         this.debugMode = false;
 
-        if(this.debugMode)console.groupCollapsed("GAME constructor");
+        if (this.debugMode) console.groupCollapsed("GAME constructor");
 
         if (!this.canvas) {
             this.canvas = document.createElement("canvas");
@@ -48,36 +47,38 @@ class Game {
 
         // this.stx
 
+        this.keyboard = options.keyboard || {};
+        this.joystick = options.joystick || {};
+
         this.activeMinigameInfo = null;
 
         this.triggeredDoorway = null;
 
         this.minigameDataMap = options.minigames;
 
+        this.setCurrentMap = options.maps[options.currentMapName];
+
         this.sceneTransitions = [];
-        this.placedHouseArr = [];
-        this.placedTreeArr = [];
 
         this.objectArr = []; // does not include hero
 
         this.doorDataList = []; // doors to houses, used for minigames
 
+        this.currentMap = this.maps[this.currentMapName];
+
         this.initScene();
 
-        this.initGround();
-
-        this.initHero();
-        this.initHouses();
-        this.initTrees();
+        this.initCurrentMap();
+        this.initStx();
 
         this.initOverlays();
 
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
 
     }
 
     initScene() {
-        if(this.debugMode)console.groupCollapsed("GAME.initScene");
+        if (this.debugMode) console.groupCollapsed("GAME.initScene");
 
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(72, 1, 0.1, 10000);
@@ -104,38 +105,50 @@ class Game {
         // Optional fog (commented out like in main scene)
         // this.scene.fog = new THREE.FogExp2(0x000000, 0.0015);
 
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
+    }
+
+    initCurrentMap() {
+        if (this.debugMode) console.groupCollapsed("GAME.initCurrentMap");
+        
+        const { currentMap } = this;
+        // this.mapImg = currentMap.mapImg;
+        // this.displacementMapImg = currentMap.displacementMapImg;
+        this.initGround();
+        this.initHero();
+        this.initHouses();
+        this.initTrees();
+
+        if (this.debugMode) console.groupEnd();
     }
 
     initGround() {
-        if(this.debugMode)console.groupCollapsed("GAME.initGround");
-        const { objectArr, placedHouseArr, scene } = this;
+        if (this.debugMode) console.groupCollapsed("GAME.initGround");
+        const { objectArr, scene } = this;
         // groundplane
-        const geometry = new THREE.PlaneBufferGeometry(
+        const geometry = new THREE.PlaneGeometry(
             this.worldWidth ?? 2048,
             this.worldHeight ?? 2048,
             300,
             300,
         );
+        console.log("this.currentMap.mapImg:", this.currentMap.mapImg);
+        console.log("this.currentMap.displacementMapImg:", this.currentMap.displacementMapImg);
         const material = new THREE.MeshStandardMaterial({
-            displacementMap: new THREE.TextureLoader().load(
-                // "assets/natron-bmp.png",
-                "assets/bump.jpg",
-            ),
-            displacementScale: 100,
-            map: new THREE.TextureLoader().load(
-                // "assets/natron-col.png",
-                "assets/col.jpg",
-            ),
+            displacementMap: new THREE.CanvasTexture(this.currentMap.displacementMapImg),
+            displacementScale: this.currentMap.displacementScale ?? 1,
+            displacementBias: this.currentMap.displacementBias ?? 0,
+            map: new THREE.CanvasTexture(this.currentMap.mapImg),
             metalness: 0,
             roughness: 20,
         });
+        console.log("material:", material);
         material.map.magFilter = THREE.NearestFilter;
         material.map.minFilter = THREE.NearestFilter;
 
         const groundplane = new THREE.Mesh(geometry, material);
         groundplane.name = "groundplane";
-        groundplane.position.set(0, -360, 0);
+        groundplane.position.set(0, 0, 0);
         groundplane.rotation.x = -Math.PI / 2;
         groundplane.receiveShadow = true;
         groundplane.castShadow = true;
@@ -149,20 +162,22 @@ class Game {
             color: 0x1111ff,
             transparent: true,
             opacity: 0.3,
+            side: THREE.DoubleSide,
         });
         const waterplane = new THREE.Mesh(geometry, watermaterial);
         waterplane.receiveShadow = true;
         waterplane.castShadow = true;
         waterplane.rotation.x = -Math.PI / 2;
-        waterplane.position.set(0, -290, 0);
+        waterplane.position.set(0, 0, 0);
+        waterplane.position.y = this.currentMap.waterLevel ?? 0;
         waterplane.name = "waterplane";
         scene.add(waterplane);
         this.waterplane = waterplane;
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
     }
 
     initHero() {
-        if(this.debugMode)console.groupCollapsed("GAME.initHero");
+        if (this.debugMode) console.groupCollapsed("GAME.initHero");
         this.hero = new THREE.Group();
         this.hero.name = "hero";
         this.scene.add(this.hero);
@@ -208,31 +223,35 @@ class Game {
         this.hero.add(heroLegPlane);
         this.heroLegPlane = heroLegPlane;
         this.heroLegPlane.name = "hero legs";
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
     }
 
     initHouses() {
-        if(this.debugMode)console.groupCollapsed("GAME.initHouses");
-        this.houseGroup = new THREE.Group();
-        this.houseGroup.name = "houseGroup";
-        this.scene.add(this.houseGroup);
-        this.objectArr.push(this.houseGroup);
-        this.houses.forEach(houseData => {
+        if (this.debugMode) console.groupCollapsed("GAME.initHouses");
+        this.currentMap.houseGroup = new THREE.Group();
+
+        const { houseGroup, houses = [] } = this.currentMap;
+
+        houseGroup.name = "houseGroup";
+        houseGroup.userData.instances = [];
+        this.scene.add(houseGroup);
+        this.objectArr.push(houseGroup);
+        houses.forEach(houseData => {
             this.initHouse(houseData);
         });
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
     }
     initHouse({ x, y, z, modelJsonObj }) {
-        if(this.debugMode)console.groupCollapsed("GAME.initHouse");
+        if (this.debugMode) console.groupCollapsed("GAME.initHouse");
         const _y = y ?? this.getMapHeight({ x, z }, false);
-
+        const { houseGroup } = this.currentMap;
         const houseInstance = new CrappyObjectInstance(modelJsonObj);
-        this.houseGroup.add(houseInstance.root);
-        this.placedHouseArr.push(houseInstance);
+        houseGroup.userData.instances.push(houseInstance);
+        houseGroup.add(houseInstance.root);
 
         houseInstance.root.position.set(x, _y, z);
         houseInstance.root.scale.multiplyScalar(10);
-        const houseId = "house-" + this.placedHouseArr.length;
+        const houseId = "house-" + houseGroup.children.length;
         houseInstance.root.name = houseId;
 
         const door = houseInstance.instances.door;
@@ -260,41 +279,46 @@ class Game {
         this.doorDataList.push({
             houseId,
             obj: houseInstance.instances.door,
-            minigameIndex: this.placedHouseArr.length - 1,
+            minigameIndex: houseGroup.children.length - 1,
             pivot: houseInstance.groups.pivot
         });
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
     }
+
     initTrees() {
-        if(this.debugMode)console.groupCollapsed("GAME.initTrees");
-        this.treeGroup = new THREE.Group();
-        this.treeGroup.name = "treeGroup";
-        this.scene.add(this.treeGroup);
-        this.objectArr.push(this.treeGroup);
-        this.trees.forEach(treeData => {
+        if (this.debugMode) console.groupCollapsed("GAME.initTrees");
+        this.currentMap.treeGroup = new THREE.Group();
+
+        const { treeGroup, trees = [] } = this.currentMap;
+        console.log("trees:", trees);
+        treeGroup.name = "treeGroup";
+        treeGroup.userData.instances = [];
+        this.scene.add(treeGroup);
+        this.objectArr.push(treeGroup);
+        trees.forEach(treeData => {
             this.initTree(treeData);
         });
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
     }
     initTree({ x, y, z, modelJsonObj }) {
-        if(this.debugMode)console.groupCollapsed("GAME.initTree");
-        const y0 = this.getMapHeight({ x, z }, false);
-        console.log("y0:", y0);
+        if (this.debugMode) console.groupCollapsed("GAME.initTree");
         const _y = y ?? this.getMapHeight({ x, z }, false);
         const treeInstance = new CrappyObjectInstance(modelJsonObj, TREE_TYPES);
         treeInstance.root.scale.multiplyScalar(this.treeScale);
-        this.treeGroup.add(treeInstance.root);
-        this.placedTreeArr.push(treeInstance);
-        console.log("x, _y, z:", x, _y, z);
+        const { treeGroup } = this.currentMap;
+        treeGroup.add(treeInstance.root);
+
+        treeGroup.userData.instances.push(treeInstance);
+
         treeInstance.root.position.set(x, _y, z);
         treeInstance.root.scale.multiplyScalar(10);
-        const treeId = "tree-" + this.placedTreeArr.length;
+        const treeId = "tree-" + treeGroup.children.length;
         treeInstance.root.name = treeId;
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
     }
 
     initLighting() {
-        if(this.debugMode)console.groupCollapsed("GAME.initLighting");
+        if (this.debugMode) console.groupCollapsed("GAME.initLighting");
 
         this.globalLight = new THREE.AmbientLight(0xffffff, 0.4);
         this.globalLight.name = "globalLight";
@@ -314,44 +338,52 @@ class Game {
         this.shadowLight.shadow.mapSize.height = 128;
         this.shadowLight.name = "shadowLight";
         this.scene.add(this.shadowLight);
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
 
     }
-    
+
     initOverlays() {
-        if(this.debugMode)console.groupCollapsed("GAME.initOverlays");
+        if (this.debugMode) console.groupCollapsed("GAME.initOverlays");
         this.noiseCanvas = document.createElement("canvas");
         this.noiseCanvas.width = 64;
         this.noiseCanvas.height = 64;
         this.noiseCtx = this.noiseCanvas.getContext("2d");
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
     }
 
-    getMapHeight(position, isPlayer = true) {
-        if(this.debugMode)console.groupCollapsed("GAME.getMapHeight");
-        if (!this.stx) {
-            // if no stx, create it
-            const stxImg = this.heightMapImg;
+    initStx() {
+        const stxImg = this.currentMap.displacementMapImg;
 
-            // if no stx image, return 0
-            if (!stxImg) {
-                console.warn('No height map image found for getMapHeight');
-                return 0;
-            }
-
-            const stxCanvas = document.createElement("canvas");
-            stxCanvas.width = stxImg.width;
-            stxCanvas.height = stxImg.height;
-            const stxCtx = stxCanvas.getContext("2d");
-            stxCtx.drawImage(stxImg, 0, 0);
-            this.stx = stxCtx;
-
+        // if no stx image, return 0
+        if (!stxImg) {
+            console.warn('No height map image found for getMapHeight');
+            return 0;
         }
-        if (!isPlayer)
-            position = {
-                x: position.x / 16,
-                z: position.z / 16,
-            };
+
+        const stxCanvas = document.createElement("canvas");
+        stxCanvas.width = stxImg.width;
+        stxCanvas.height = stxImg.height;
+        // document.body.appendChild(stxCanvas);
+        // stxCanvas.style.position = "fixed";
+        // stxCanvas.style.bottom = "0";
+        // stxCanvas.style.left = "0";
+        // stxCanvas.style.pointerEvents = "none";
+
+        const stxCtx = stxCanvas.getContext("2d");
+        stxCtx.drawImage(stxImg, 0, 0);
+        this.stx = stxCtx;
+    }
+    getMapHeight(position, isPlayer = true) {
+        if (this.debugMode) console.groupCollapsed("GAME.getMapHeight");
+        if (!this.stx) {
+            this.initStx();
+        }
+        // if (!isPlayer)
+        //     position = {
+        //         x: position.x / 16,
+        //         z: position.z / 16,
+        //     };
+
         let uv = this.getUvPosition(position);
         let samples = [
             this.stx.getImageData(uv.u, uv.v, 1, 1).data[0],
@@ -363,10 +395,21 @@ class Game {
 
         let value =
             samples.reduce((sum, x) => (sum += x)) / samples.length;
-        value = -360 + 400 * (value / 255);
+        // console.log("value:", value);
 
-        if (value < -300) value = -300;
-        if(this.debugMode)console.groupEnd();
+        const ratio = value / 255;
+        const displacementScale = this.currentMap.displacementScale; // scale factor for height
+        const scale = this.groundplane.scale.y;
+        value = displacementScale * ratio * scale;
+        if (!this.prevX) {
+            this.prevX = position.x;
+        }
+        if (this.prevX !== position.x) {
+            console.log("value:", value);
+        }
+        this.prevX = position.x;
+        // if (value < -300) value = -300;
+        if (this.debugMode) console.groupEnd();
         return value;
     }
 
@@ -378,7 +421,7 @@ class Game {
     }
 
     checkDoors(time) {
-        if(this.debugMode)console.groupCollapsed("GAME.checkDoors");
+        if (this.debugMode) console.groupCollapsed("GAME.checkDoors");
         const { hero, doorDataList, player } = this;
         let entranceDist = 70;
         let entranceTimeSec = 0.7;
@@ -424,11 +467,11 @@ class Game {
                 this.sceneTransitions.push(new SceneTransition(entranceTimeSec, 'circle', 'in'));
             }
         }
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
     }
 
     applyRandomNoiseEffect(ctx) {
-        if(this.debugMode)console.groupCollapsed("GAME.applyRandomNoiseEffect");
+        if (this.debugMode) console.groupCollapsed("GAME.applyRandomNoiseEffect");
         if (!ctx) return;
         const w = ctx.canvas.width,
             h = ctx.canvas.height,
@@ -439,16 +482,64 @@ class Game {
         for (; i < len; i++)
             if (Math.random() < 0.5) buffer32[i] = 0xffffffff;
         ctx.putImageData(iData, 0, 0);
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
     }
 
-    
+    setMap(mapName) {
+        if (this.maps[mapName]) {
+
+            this.clearGroups();
+
+            this.currentMap = this.maps[mapName];
+            this.initStx();
+
+            const map = this.currentMap.map ?? new THREE.CanvasTexture(this.currentMap.mapImg);
+            const displacementMap = this.currentMap.displacementMap ?? new THREE.CanvasTexture(this.currentMap.displacementMapImg);
+
+            this.waterplane.position.y = this.currentMap.waterLevel ?? 0;
+
+            this.updateMinimap(this.currentMap.displacementMapImg);
+
+            this.groundplane.material.map = map;
+            this.groundplane.material.displacementMap = displacementMap;
+            this.groundplane.material.displacementScale = this.currentMap.displacementScale ?? this.displacementScale;
+            this.groundplane.material.needsUpdate = true;
+
+            this.initHouses();
+            this.initTrees();
+
+        } else {
+            console.warn(`Map not found: ${mapName}`);
+        }
+    }
+
+    clearGroups() {
+        const houseUuids = this.currentMap.houseGroup.children.map(n => n.uuid);
+        // console.log("houseUuids:", houseUuids);
+        houseUuids.forEach(uuid => {
+            const obj = this.scene.getObjectByProperty('uuid', uuid);
+            if (obj) obj.parent.remove(obj);
+        });
+
+        const treeUuids = this.currentMap.treeGroup.children.map(n => n.uuid);
+        // console.log("treeUuids:", treeUuids);
+        treeUuids.forEach(uuid => {
+            const obj = this.scene.getObjectByProperty('uuid', uuid);
+            obj.parent.remove(obj);
+        });
+    }
+
     setActiveMinigame(minigameInfo) {
         this.activeMinigameInfo = minigameInfo;
     }
 
+    updateMinimap(img) {
+        DEBUG_UI.debugCtx.drawImage(img, 0, 0);
+    }
+
     startMinigame(i, time) {
-        if(this.debugMode)console.groupCollapsed("GAME.startMinigame");
+        debugger;
+        if (this.debugMode) console.groupCollapsed("GAME.startMinigame");
         if (this.activeMinigameInfo) {
             this.activeMinigameInfo.canvas.remove();
         }
@@ -488,7 +579,7 @@ class Game {
             canvas,
             handler: new handlerClass(canvas, onQuit),
         };
-        if(this.debugMode)console.groupEnd();
+        if (this.debugMode) console.groupEnd();
     }
 
     updateMinigame(time) {
@@ -508,13 +599,13 @@ class Game {
     }
 
     updatePlayer(time) {
-        const { camera, hero, heroMaterial, heroLegIdleTexture, heroLegRunTexture, heroHead, keyboard, objectArr, player, placedHouseArr } = this;
+        const { camera, hero, heroMaterial, heroLegIdleTexture, heroLegRunTexture, heroHead, keyboard, objectArr, player } = this;
 
         // moving?
-        if (keyboard.isDown(keyboard.DOWN) ||
-            keyboard.isDown(keyboard.UP) ||
-            keyboard.isDown(keyboard.LEFT) ||
-            keyboard.isDown(keyboard.RIGHT) ||
+        if (keyboard?.isDown(keyboard?.DOWN) ||
+            keyboard?.isDown(keyboard?.UP) ||
+            keyboard?.isDown(keyboard?.LEFT) ||
+            keyboard?.isDown(keyboard?.RIGHT) ||
             player.jactive) {
             player.moving = true;
         } else {
@@ -522,16 +613,16 @@ class Game {
         }
 
         // keys
-        if (keyboard.isDown(keyboard.LEFT)) {
+        if (keyboard?.isDown(keyboard?.LEFT)) {
             player.x -= player.maxSpeed;
         }
-        if (keyboard.isDown(keyboard.RIGHT)) {
+        if (keyboard?.isDown(keyboard?.RIGHT)) {
             player.x += player.maxSpeed;
         }
-        if (keyboard.isDown(keyboard.UP)) {
+        if (keyboard?.isDown(keyboard?.UP)) {
             player.z -= player.maxSpeed;
         }
-        if (keyboard.isDown(keyboard.DOWN)) {
+        if (keyboard?.isDown(keyboard?.DOWN)) {
             player.z += player.maxSpeed;
         }
 
@@ -542,8 +633,8 @@ class Game {
 
         // set hero on ground
         hero.position.y = this.getMapHeight(player);
-        hero.position.y += 10 //offset for cube height
-        camera.position.y = GAME.camOffsetY + (hero.position.y + 40);
+        // hero.position.y += 10 //offset for cube height
+        camera.position.y = this.camOffsetY + (hero.position.y + 40);
         camera.lookAt(hero.position);
 
         // combined movement
@@ -588,7 +679,7 @@ class Game {
         } else {
             // console.log("Updating game...");
             this.updatePlayer(time);
-            this.checkDoors(time);
+            // this.checkDoors(time);
 
             if (typeof DEBUG_UI !== "undefined") {
                 DEBUG_UI.update(time);

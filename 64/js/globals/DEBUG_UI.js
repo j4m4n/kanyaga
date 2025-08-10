@@ -13,13 +13,12 @@ DEBUG_UI.init = () => {
     DEBUG_UI.debugMap.width = GAME.mapWidth;
     DEBUG_UI.debugMap.height = GAME.mapHeight;
     DEBUG_UI.debugCtx = DEBUG_UI.debugMap.getContext('2d');
-    const topLeftHud = document.createElement('div');
-    topLeftHud.id = 'topleft-hud';
-    document.body.append(topLeftHud);
-    DEBUG_UI.topLeftHud = topLeftHud;
+
     DEBUG_UI.initTopLeftHud();
     DEBUG_UI.buildDebugUi();
     DEBUG_UI.updateDebugUi();
+
+    DEBUG_UI.initMapSelection();
 
     DEBUG_UI.debugMap.addEventListener('click', (e) => {
         e.preventDefault();
@@ -33,8 +32,37 @@ DEBUG_UI.update = (time) => {
         DEBUG_UI.updatePlayerPos();
     }
 }
+DEBUG_UI.initMapSelection = () => {
+    const mapSelectDiv = document.createElement('div');
+    mapSelectDiv.style.position = 'fixed';
+    mapSelectDiv.style.top = '210px';
+    mapSelectDiv.style.right = '10px';
+    mapSelectDiv.style.zIndex = '1000';
+    mapSelectDiv.id = 'mapSelectDiv';
+    document.body.append(mapSelectDiv);
+    DEBUG_UI.mapSelectDiv = mapSelectDiv;
+    const fieldset = document.createElement('fieldset');
+    const legend = document.createElement('legend');
+    fieldset.style.padding = "4px";
+    legend.innerText = 'Select Map:';
+    fieldset.append(legend);
+
+    Object.keys(GAME.maps).forEach(mapName => {
+        console.log("mapName:", mapName);
+        const btn = document.createElement('button');
+        btn.onclick = () => {
+            GAME.setMap(mapName);
+        };
+        btn.innerText = mapName;
+        fieldset.append(btn);
+    });
+    mapSelectDiv.append(fieldset);
+}
 DEBUG_UI.initTopLeftHud = () => {
-    const { topLeftHud } = DEBUG_UI;
+    const topLeftHud = document.createElement('div');
+    topLeftHud.id = 'topleft-hud';
+    document.body.append(topLeftHud);
+    DEBUG_UI.topLeftHud = topLeftHud;
     topLeftHud.innerHTML = `
         <div>x:<span id="xvar">1</span></div>
         <div>z:<span id="zvar">2</span></div>
@@ -84,15 +112,17 @@ DEBUG_UI.buildDebugUi = () => {
         cancelButton.onclick = () => bg.remove();
         bg.append(cancelButton);
 
+        const { houseGroup } = GAME.currentMap;
+
         const doneButton = document.createElement('button');
         doneButton.innerText = 'done';
         doneButton.onclick = () => {
             const input = textarea.value;
             if (input === '') {
-                GAME.placedHouseArr.forEach(house => {
-                    house.root.parent.remove(house.root);
+                houseGroup.children.forEach(house => {
+                    house.parent.remove(house);
                 });
-                GAME.placedHouseArr = [];
+                houseGroup.userData.instances = [];
                 bg.remove();
                 return;
             }
@@ -110,12 +140,12 @@ DEBUG_UI.buildDebugUi = () => {
                 return;
             }
 
-            GAME.placedHouseArr.forEach(house => {
-                house.root.parent.remove(house.root);
+            houseGroup.children.forEach(house => {
+                house.parent.remove(house);
             });
-            GAME.placedHouseArr = [];
+            houseGroup.userData.instances = [];
             GAME.houseGroup.parent.remove(GAME.houseGroup);
-            GAME.houses = json.map(n => {
+            GAME.currentMap.houses = json.map(n => {
                 return {
                     x: n.x,
                     z: n.z,
@@ -132,7 +162,7 @@ DEBUG_UI.onClickMini = () => {
     DEBUG_UI.updateDebugUi();
 };
 DEBUG_UI.updateDebugUi = () => {
-    DEBUG_UI.houseCountDiv.innerText = `Click the map to\nplace a house\n\n# placed houses: ${GAME.placedHouseArr.length}`;
+    DEBUG_UI.houseCountDiv.innerText = `Click the map to\nplace a house\n\n# placed houses: ${GAME.currentMap.houseGroup.children.length}`;
 }
 DEBUG_UI.updatePlayerPos = () => {
     const xvar = document.getElementById("xvar");
@@ -155,20 +185,20 @@ DEBUG_UI.updateDebugMap = () => {
     debugCtx.clearRect(0, 0, debugMap.width, debugMap.height);
     debugCtx.drawImage(olimg, 0, 0, debugMap.width, debugMap.height);
 
-    GAME.placedHouseArr.forEach(house => {
+    GAME.currentMap.houseGroup.children.forEach(house => {
         let uv = {
-            u: (house.root.position.x / 4096) / 2 + 0.5,
-            v: (house.root.position.z / 4096) / 2 + 0.5,
+            u: (house.position.x / 4096) / 2 + 0.5,
+            v: (house.position.z / 4096) / 2 + 0.5,
         };
         debugCtx.fillStyle = '#00ffff';
         const s = 50;
         debugCtx.fillRect(uv.u * debugCtx.canvas.width - (s/2), uv.v * debugCtx.canvas.height - (s/2), s, s);
     });
 
-    GAME.placedTreeArr.forEach(tree => {
+    GAME.currentMap.treeGroup.children.forEach(tree => {
         let uv = {
-            u: (tree.root.position.x / 4096) / 2 + 0.5,
-            v: (tree.root.position.z / 4096) / 2 + 0.5,
+            u: (tree.position.x / 4096) / 2 + 0.5,
+            v: (tree.position.z / 4096) / 2 + 0.5,
         };
         debugCtx.fillStyle = '#00ff00';
         const s = 10;
