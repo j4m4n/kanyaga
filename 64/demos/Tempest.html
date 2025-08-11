@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tempest (Three.js) — playable prototype</title>
+  <style>
+    html, body { height: 100%; margin: 0; background:#000; color:#ddd; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    #ui { position: fixed; inset: 0 0 auto 0; padding: 8px 10px; display:flex; gap:16px; align-items:center; background: linear-gradient(180deg, rgba(0,0,0,.6), rgba(0,0,0,0)); pointer-events:none; }
+    #ui .pill { pointer-events:auto; background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); padding: 6px 10px; border-radius: 999px; }
+    #ui b { color:#fff }
+    #centerMsg { position: fixed; inset: 0; display:grid; place-items:center; text-align:center; font-weight:700; letter-spacing:.04em; }
+    #help { position: fixed; bottom: 8px; left: 8px; background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:8px 10px; font-size:12px; line-height:1.4; }
+    canvas { display:block }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <div class="pill">Score: <b id="score">0</b></div>
+    <div class="pill">Level: <b id="level">1</b></div>
+    <div class="pill">Lives: <b id="lives">3</b></div>
+  </div>
+  <div id="centerMsg"></div>
+  <div id="help">
+    <div><b>Controls</b>: ◀︎/A = left, ▶︎/D = right, <b>Space</b> = fire, <b>Z</b> = SuperZapper, <b>Enter</b> = start/restart</div>
+  </div>
+<script type="module">
+import * as THREE from 'https://unpkg.com/three@0.164.1/build/three.module.js';
+
+// ------- Config -------
+const NUM_LANES = 16;            // number of spokes (sectors)
+const R_OUTER   = 8;             // player ring radius
+const R_INNER   = 0.8;           // pit radius
+const DEPTH     = 80;            // tunnel depth along -Z
+const RINGS     = 36;            // number of rings along Z
+const ENEMY_SPAWN_BASE = 0.85;   // lower = more spawns
+
+// Game State
+const state = {
+  running: false,
+  superZapperReady: true,
+  level: 1,
+  score: 0,
+  lives: 3,
+  lane: 0, // player lane index
+  bullets: [], // {mesh, lane, zSpeed}
+  enemies: [], // {mesh, lane, z, zSpeed}
+  lastShotAt: 0,
+  lastSpawnAt: 0,
+};
+
+// Renderer/Scene/Camera
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.5;
+renderer.setClearColor(0x000000);
+
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000000, 0.02);
+
+const camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 300);
+camera.position.set(0, 0, 16);
+camera.lookAt(0, 0, -12);
+
+// Lights (subtle neon vibe)
+const light1 = new THREE.PointLight(0x44ccff, 2, 100); light1.position.set( 10, 12, 4);
+const light2 = new THREE.PointLight(0xff44aa, 2, 100); light2.position.set(-10, 12, 4);
+scene.add(light1, light2);
+
+// ------- Build web (spokes + rings) -------
+const webGroup = new THREE.Group();
+scene.add(webGroup);
+
+function laneRadiusAt(t) { // t in [0..1], 0=near(player) 1=deep
+  // exponential-ish taper towards the pit
+  return THREE.MathUtils.lerp(R_OUTER, R_INNER, Math.pow(t, 1.2));
+}
+
+// Rings (concentric around Z) as line loops
+const ringMat = new THREE.LineBasicMaterial({ color: 0x00fff7, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false });
+for (let i = 0; i <= RINGS; i++) {
+  const t = i / RINGS; // 0..1
+  const radius = laneRadiusAt(t);
+  const geo = new THREE.BufferGeometry();
+  const verts = [];
+  for (let s = 0; s < NUM_LANES; s++) {
+    const a = (s / NUM_LANES) * Math.PI * 2;
+    const x = Math.cos(a) * radius;
+    const y = Math.sin(a) * radius;
+    const z = -t * DEPTH;
+    verts.push(x,y,z);
+  }
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts,3));
+  const line = new THREE.LineLoop(geo, ringMat);
+  webGroup.add(line);
+}
+
+// Spokes (lane boundaries) as lines down the tunnel
+const spokeMat = new THREE.LineBasicMaterial({ color: 0x66b2ff, transparent:true, opacity:0.6, blending:THREE.AdditiveBlending, depthWrite:false });
+for (let s = 0; s < NUM_LANES; s++) {
+  const geo = new THREE.BufferGeometry();
+  const verts = [];
+  for (let i = 0; i <= RINGS; i++) {
+    const t = i / RINGS;
+    const r = laneRadiusAt(t);
+    const a = (s / NUM_LANES) * Math.PI * 2;
+    const x = Math.cos(a) * r;
+    const y = Math.sin(a) * r;
+    const z = -t * DEPTH;
+    verts.push(x,y,z);
+  }
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts,3));
+  const line = new THREE.Line(geo, spokeMat);
+  webGroup.add(line);
+}
+
+// Rim highlight (player ring)
+const rimGeom = new THREE.RingGeometry(R_OUTER*0.98, R_OUTER*1.02, NUM_LANES*2);
+const rimMat  = new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.18, side:THREE.DoubleSide, blending:THREE.AdditiveBlending });
+const rim = new THREE.Mesh(rimGeom, rimMat);
+rim.rotation.x = Math.PI/2; // lay flat in XY
+scene.add(rim);
+
+// Player claw
+const clawGroup = new THREE.Group();
+const clawGeom = new THREE.ConeGeometry(0.45, 1.0, 16);
+const clawMat  = new THREE.MeshStandardMaterial({ color:0xffff66, emissive:0x333300, metalness:0.4, roughness:0.2 });
+const claw = new THREE.Mesh(clawGeom, clawMat);
+claw.rotation.x = Math.PI/2; // point down tunnel (−Z)
+claw.position.z = 0.2;
+clawGroup.add(claw);
+
+// Small lane marker ring beneath the claw for clarity
+const marker = new THREE.Mesh(new THREE.TorusGeometry(R_OUTER, 0.02, 8, 64), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.2 }));
+marker.rotation.x = Math.PI/2;
+scene.add(marker);
+scene.add(clawGroup);
+
+function placeClawAtLane(idx) {
+  const angle = (idx / NUM_LANES) * Math.PI * 2;
+  const x = Math.cos(angle) * R_OUTER;
+  const y = Math.sin(angle) * R_OUTER;
+  clawGroup.position.set(x, y, 0);
+  clawGroup.rotation.z = angle + Math.PI/2; // align to lane
+  marker.rotation.z = angle;
+}
+placeClawAtLane(state.lane);
+
+// Bullets
+const bulletGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.9, 8);
+const bulletMat = new THREE.MeshBasicMaterial({ color:0xffffff });
+
+function fire() {
+  const now = performance.now();
+  if (now - state.lastShotAt < 120) return; // firerate limit
+  state.lastShotAt = now;
+  const mesh = new THREE.Mesh(bulletGeo, bulletMat);
+  mesh.rotation.x = Math.PI/2;
+  const angle = (state.lane / NUM_LANES) * Math.PI * 2;
+  mesh.position.set(Math.cos(angle)*R_OUTER, Math.sin(angle)*R_OUTER, 0);
+  scene.add(mesh);
+  state.bullets.push({ mesh, lane: state.lane, zSpeed: 1.4 + state.level*0.05 });
+}
+
+// Enemies
+const enemyGeo = new THREE.TetrahedronGeometry(0.5, 0);
+const enemyMat = new THREE.MeshStandardMaterial({ color:0xff3388, emissive:0x330011, roughness:0.35, metalness:0.15 });
+
+function spawnEnemy() {
+  const lane = Math.floor(Math.random() * NUM_LANES);
+  // prevent overcrowding same lane near each other
+  if (state.enemies.some(e => e.lane === lane && e.mesh.position.z < -DEPTH * 0.7)) return;
+  const mesh = new THREE.Mesh(enemyGeo, enemyMat);
+  const angle = (lane / NUM_LANES) * Math.PI * 2;
+  mesh.position.set(Math.cos(angle)*laneRadiusAt(1)*1.02, Math.sin(angle)*laneRadiusAt(1)*1.02, -DEPTH);
+  mesh.rotation.z = angle;
+  scene.add(mesh);
+  const base = 0.06 + state.level*0.01;
+  state.enemies.push({ mesh, lane, z: -DEPTH, zSpeed: base });
+}
+
+function superZapper() {
+  if (!state.superZapperReady || !state.running) return;
+  state.superZapperReady = false;
+  // zap all current enemies
+  let killed = 0;
+  for (const e of state.enemies) { scene.remove(e.mesh); killed++; }
+  state.enemies.length = 0;
+  if (killed) addScore(killed * 150);
+  flash(0x66ccff);
+}
+
+function addScore(n) {
+  state.score += n; scoreEl.textContent = state.score.toString();
+}
+
+// HUD elements
+const scoreEl = document.getElementById('score');
+const levelEl = document.getElementById('level');
+const livesEl = document.getElementById('lives');
+const centerMsg = document.getElementById('centerMsg');
+
+function setCenterMessage(msg, sub="Press Enter to start") {
+  centerMsg.innerHTML = `<div style="font-size:40px;color:#fff;text-shadow:0 2px 8px #09f">${msg}</div><div style="opacity:.8;margin-top:6px">${sub}</div>`;
+}
+function clearCenterMessage() { centerMsg.textContent = ""; }
+setCenterMessage("TEMPEST — three.js prototype");
+
+function resetLevel(resetLives=false) {
+  for (const b of state.bullets) scene.remove(b.mesh);
+  for (const e of state.enemies) scene.remove(e.mesh);
+  state.bullets.length = 0; state.enemies.length = 0;
+  state.lane = 0; placeClawAtLane(state.lane);
+  state.superZapperReady = true;
+  if (resetLives) state.lives = 3;
+  livesEl.textContent = state.lives.toString();
+  levelEl.textContent = state.level.toString();
+}
+
+function gameOver() {
+  state.running = false;
+  setCenterMessage("GAME OVER", `Score ${state.score} — Press Enter to restart`);
+}
+
+// Flash effect
+const flashPlane = new THREE.Mesh(new THREE.PlaneGeometry(100,100), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0 }));
+flashPlane.rotation.x = -Math.PI/2; // horizontal
+flashPlane.position.set(0,0,2);
+scene.add(flashPlane);
+function flash(color=0xffffff) {
+  flashPlane.material.color.setHex(color);
+  flashPlane.material.opacity = 0.45;
+  flashPlane.visible = true;
+  setTimeout(()=>{ flashPlane.material.opacity = 0; }, 60);
+}
+
+// Input
+const keys = new Set();
+addEventListener('keydown', (e)=>{
+  if (e.code === 'Enter') { if (!state.running) startGame(); }
+  if (!state.running) return;
+  if (['ArrowLeft','ArrowRight','KeyA','KeyD','Space','KeyZ'].includes(e.code)) e.preventDefault();
+  keys.add(e.code);
+  if (e.code === 'Space') fire();
+  if (e.code === 'KeyZ') superZapper();
+}, {passive:false});
+addEventListener('keyup', (e)=>{ keys.delete(e.code); });
+
+function startGame() {
+  clearCenterMessage();
+  state.running = true;
+  state.score = 0; scoreEl.textContent = '0';
+  state.level = 1; levelEl.textContent = '1';
+  state.lives = 3; livesEl.textContent = '3';
+  resetLevel();
+}
+
+// Resize
+function onResize(){
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+addEventListener('resize', onResize);
+
+function laneAngle(lane){ return (lane/NUM_LANES) * Math.PI*2; }
+
+// Main loop
+const clock = new THREE.Clock();
+function tick(){
+  const dt = Math.min(clock.getDelta(), 0.033); // clamp delta
+
+  // Move player around rim
+  if (state.running) {
+    let moved = false;
+    if (keys.has('ArrowLeft') || keys.has('KeyA')) { state.lane = (state.lane - 1 + NUM_LANES) % NUM_LANES; moved = true; }
+    if (keys.has('ArrowRight') || keys.has('KeyD')) { state.lane = (state.lane + 1) % NUM_LANES; moved = true; }
+    if (moved) placeClawAtLane(state.lane);
+
+    // Spawn enemies
+    const spawnInterval = THREE.MathUtils.lerp(0.55, 0.22, Math.min(1,(state.level-1)/12));
+    if (performance.now() - state.lastSpawnAt > spawnInterval*1000) {
+      state.lastSpawnAt = performance.now();
+      const chance = ENEMY_SPAWN_BASE - Math.min(0.6, state.level*0.03);
+      if (Math.random() > chance) spawnEnemy();
+    }
+
+    // Update enemies (move towards player)
+    for (let i = state.enemies.length-1; i>=0; i--) {
+      const e = state.enemies[i];
+      e.z += e.zSpeed;
+      const t = Math.min(1, Math.abs(e.z)/DEPTH);
+      const r = laneRadiusAt(1 - t); // reverse because enemies move to 0
+      const a = laneAngle(e.lane);
+      e.mesh.position.set(Math.cos(a)*r, Math.sin(a)*r, e.z);
+      e.mesh.rotation.y += dt*3.0;
+
+      // reached rim?
+      if (e.z >= -0.8) {
+        // collide if in same lane
+        if (e.lane === state.lane) {
+          state.lives--; livesEl.textContent = state.lives.toString();
+          flash(0xff3355);
+          if (state.lives <= 0) { scene.remove(e.mesh); state.enemies.splice(i,1); gameOver(); break; }
+        }
+        // remove enemy regardless once it reaches the rim
+        scene.remove(e.mesh);
+        state.enemies.splice(i,1);
+      }
+    }
+
+    // Update bullets (move down the lane)
+    for (let i = state.bullets.length-1; i>=0; i--) {
+      const b = state.bullets[i];
+      b.mesh.position.z -= b.zSpeed;
+      const t = Math.min(1, Math.abs(b.mesh.position.z)/DEPTH);
+      const r = laneRadiusAt(t);
+      const a = laneAngle(b.lane);
+      b.mesh.position.x = Math.cos(a)*r;
+      b.mesh.position.y = Math.sin(a)*r;
+
+      // off the deep end?
+      if (b.mesh.position.z <= -DEPTH) {
+        scene.remove(b.mesh);
+        state.bullets.splice(i,1);
+        continue;
+      }
+
+      // bullet-enemy collisions (same lane & close z)
+      for (let j = state.enemies.length-1; j>=0; j--) {
+        const e = state.enemies[j];
+        if (e.lane !== b.lane) continue;
+        if (Math.abs(e.mesh.position.z - b.mesh.position.z) < 0.8) {
+          // hit
+          addScore(100);
+          flash(0x88ff66);
+          scene.remove(e.mesh); state.enemies.splice(j,1);
+          scene.remove(b.mesh); state.bullets.splice(i,1);
+          break;
+        }
+      }
+    }
+
+    // Level progression: if no enemies for a bit, advance
+    if (state.running && state.enemies.length === 0 && performance.now() - state.lastSpawnAt > 2000) {
+      state.level++;
+      if (state.level % 3 === 0 && state.lives < 5) state.lives++; // occasional extra life
+      levelEl.textContent = state.level.toString();
+      livesEl.textContent = state.lives.toString();
+      resetLevel();
+      setCenterMessage(`LEVEL ${state.level}`, 'Get ready...');
+      state.running = false;
+      setTimeout(()=>{ clearCenterMessage(); state.running = true; }, 900);
+    }
+  }
+
+  // Neon pulse on web
+  const t = performance.now()*0.001;
+  const pulse = (Math.sin(t*3)+1)/2; // 0..1
+  ringMat.opacity = 0.5 + pulse*0.35;
+  spokeMat.opacity = 0.35 + (1-pulse)*0.35;
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+requestAnimationFrame(tick);
+
+</script>
+</body>
+</html>
