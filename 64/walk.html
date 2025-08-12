@@ -102,7 +102,6 @@
     let hitCanvas;
     let hitCtx;
     var imgx = document.getElementById("natronHit");
-    initHit();
 
     function initHit() {
         hitCanvas = document.createElement("canvas");
@@ -147,6 +146,7 @@
     let TIME = 0;
 
     window.onload = () => {
+        initHit();
         console.log("barkImg.width:", barkImg.width);
         console.log("barkImg.height:", barkImg.height);
         initTreeMaterials(barkImg);
