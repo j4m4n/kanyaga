@@ -612,24 +612,43 @@ class Game {
             player.moving = false;
         }
 
+        let frameMove = { x: player.x, z: player.z };
+
         // keys
         if (keyboard?.isDown(keyboard?.LEFT)) {
-            player.x -= player.maxSpeed;
+            frameMove.x -= player.maxSpeed;
         }
         if (keyboard?.isDown(keyboard?.RIGHT)) {
-            player.x += player.maxSpeed;
+            frameMove.x += player.maxSpeed;
         }
         if (keyboard?.isDown(keyboard?.UP)) {
-            player.z -= player.maxSpeed;
+            frameMove.z -= player.maxSpeed;
         }
         if (keyboard?.isDown(keyboard?.DOWN)) {
-            player.z += player.maxSpeed;
+            frameMove.z += player.maxSpeed;
+        }
+
+        let wouldHitCollision = updateHitcanvas(frameMove.x, frameMove.z);
+        if (wouldHitCollision) {
+            // Collision for full move, try moving in only one axis
+            let xCollision = updateHitcanvas(frameMove.x, player.z);
+            let zCollision = updateHitcanvas(player.x, frameMove.z);
+            if (xCollision && zCollision) return;
+            if (!xCollision) {
+               player.x = frameMove.x;
+            }
+            if (!zCollision) {
+                player.z = frameMove.z;
+            }
+        } else {
+            // No collision, move the player to target
+            player.x = frameMove.x;
+            player.z = frameMove.z;
         }
 
         // lerp motion
         player.xlerp += (player.x - player.xlerp) * 0.2;
         player.zlerp += (player.z - player.zlerp) * 0.2;
-
 
         // set hero on ground
         hero.position.y = this.getMapHeight(player);

@@ -4,6 +4,7 @@
         <link rel="stylesheet" href="css/page.css" />
         <script src="js/three.min.js"></script>
         <script src="js/nipplejs.js"></script>
+        <script src="js/lib/zzfxm.js"></script>
         <script src="js/utils/math.js"></script>
         <script src="js/classes/Game.js"></script>
         <script src="js/classes/SceneTransition.js"></script>
@@ -131,7 +132,7 @@
         );
 
         // the value we need
-        console.log(pixel.data[0]);
+        let hitPixelValue = pixel.data[0];
 
         // check place on map (remove this later)
         hitCtx.strokeStyle = "#ffff00";
@@ -139,6 +140,8 @@
         hitCtx.beginPath();
         hitCtx.rect(uv.u * hitCanvas.width, uv.v * hitCanvas.height, 20, 20);
         hitCtx.stroke();
+
+        return hitPixelValue;
     }
 
     // this is as is
@@ -304,7 +307,6 @@
         requestAnimationFrame(animate);
         TIME = window.performance.now() * 0.001; // time since game start in seconds
         GAME.update(TIME);
-        updateHitcanvas(GAME.player.x, GAME.player.z);
         // console.log(updateHitstate(GAME.player.x, GAME.player.z));
     }
     // setTimeout(() => {
