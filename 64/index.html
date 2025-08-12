@@ -6,10 +6,12 @@
     <script src="js/three.min.js"></script>
     <script src="js/nipplejs.js"></script>
     <script src="js/utils/math.js"></script>
+    <script src="js/lib/zzfxm.js"></script>
     <script src="js/classes/Game.js"></script>
     <script src="js/classes/SceneTransition.js"></script>
     <script src="js/classes/Ease.js"></script>
     <script src="js/classes/GoldSmashMinigame.js"></script>
+    <script src="js/classes/DanceMinigame.js"></script>
     <script src="js/classes/CrappyObjectInstance.js"></script>
     <!-- <script src="js/utils/sceneLogger.js"></script> -->
     <script src="js/utils/jsonGeoGenerator.js"></script>
@@ -66,7 +68,8 @@
                     waterLevel: 80,
                     displacementScale: 100,
                     houses: [
-                        { x: -260, z: -260, modelJsonObj: MODELS_CONFIG.house }
+                        { x: -220, z: -260, modelJsonObj: MODELS_CONFIG.house },
+                        { x: 220, z: -260, modelJsonObj: MODELS_CONFIG.house }
                     ],
                     trees: [
                         { x: 70, z: 160, modelJsonObj: MODELS_CONFIG.tree_Alder_5 },
@@ -129,6 +132,7 @@
             treeScale: 12,
             minigames: {
                 0: { name: 'goldsmash', handlerClass: GoldSmashMinigame },
+                1: { name: 'dance', handlerClass: DanceMinigame },
             }
         });
 

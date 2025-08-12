@@ -78,6 +78,8 @@ class GoldSmashMinigame {
                 if (dist < 1) {
                     this.scene.remove(c);
                     removedCubes.push(c);
+                    zzfx(...[0.5,,95,.01,.17,.35,4,3.8,-1,,,,.12,1.6,,.6,,.3,.05,.5,762]); // Explosion 46
+                    zzfx(...[1.5,2,108,.08,.16,.33,1,4,,5,482,.06,.03,,,,.16,.51,.11,.36]); // Powerup 54
                     this.explodeParticles(c.position);
                 }
             })

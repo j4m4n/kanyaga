@@ -378,11 +378,12 @@ class Game {
         if (!this.stx) {
             this.initStx();
         }
-        // if (!isPlayer)
-        //     position = {
-        //         x: position.x / 16,
-        //         z: position.z / 16,
-        //     };
+        if (!isPlayer) {
+            position = {
+                x: position.x / 16,
+                z: position.z / 16,
+            };
+        }
 
         let uv = this.getUvPosition(position);
         let samples = [
@@ -538,7 +539,6 @@ class Game {
     }
 
     startMinigame(i, time) {
-        debugger;
         if (this.debugMode) console.groupCollapsed("GAME.startMinigame");
         if (this.activeMinigameInfo) {
             this.activeMinigameInfo.canvas.remove();
@@ -679,7 +679,7 @@ class Game {
         } else {
             // console.log("Updating game...");
             this.updatePlayer(time);
-            // this.checkDoors(time);
+             this.checkDoors(time);
 
             if (typeof DEBUG_UI !== "undefined") {
                 DEBUG_UI.update(time);
