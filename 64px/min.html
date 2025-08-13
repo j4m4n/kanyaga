@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>SAM</title>
+<style>
+body {
+    max-width: 15cm;
+    margin: 2% auto;
+    font-family: sans-serif;
+}
+canvas { 
+    position: absolute; top: 0; left: 0; 
+}
+ul, li {list-style-type: none; padding: 0; margin: 0;}
+textarea {margin-top: 1em; padding: 12px;}
+#hud {position: absolute; top: 12px; left: 12px; z-index: 2;}
+
+button {padding: 4px; cursor: pointer;}
+
+#hud, button {
+    width: 200px;
+    display: block;
+    margin: 2px auto;
+}
+
+#botface {
+    display: block;
+    height: auto;
+    width: 120px;
+    height: 28px;
+    text-align: center; 
+    z-index: 999;
+    user-select: none;
+    font-family: monospace;
+    transform-origin: bottom;
+    transform: scale(1);
+    font-size: 28px;
+    color: #000;
+    margin: 0 auto;
+}
+
+#botface div {display: inline; }
+
+#botmouth {
+    display: block;
+    margin: 0 auto;
+    width: 20px; height: 20px; 
+    line-height: 20px;
+    font-weight: lighter;
+    transform-origin: center;
+    transform: rotate(90deg); 
+    text-align: center;
+    position: absolute;
+    top: 8px;
+    left: 45%;
+}
+
+#botLeye, #botReye,
+#botLside, #botRside {
+    position: absolute;
+}
+
+#botLeye {left: 12px;}
+#botReye {right: 12px;}
+
+#botLside {left: 0;}
+#botRside {right: 0;}
+</style>
+</head>
+
+<body>
+<div id="hud">
+    <ul>
+        <li><button onclick="setvoice(0)">Elf</button></li>
+        <li><button onclick="setvoice(1)">Little Robot</button></li>
+        <li><button onclick="setvoice(2)">Stuffy Guy</button></li>
+        <li><button onclick="setvoice(3)">Little Old Lady</button></li>
+        <li><button onclick="setvoice(4)">Extra-Terrestrial</button></li>
+        <li><button onclick="setvoice(5)">SAM</button></li>
+    </ul>
+    <textarea id="textarea">All your base are belong to us.</textarea>
+    <p><button id="start">TALK</button></p>
+</div>
+
+
+<div id="bothead">
+    <p id="output"></p>
+</div>
+
+<script src="js/SAM.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.122.0/build/three.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.122.0/examples/js/controls/OrbitControls.js"></script>
+
+
+<script>
+    var voices = [
+        {pitch: 64, speed: 122, mouth: 160, throat: 110},
+        {pitch: 60, speed: 92, mouth: 190, throat: 190},
+        {pitch: 72, speed: 82, mouth: 105, throat: 110},
+        {pitch: 32, speed: 82, mouth: 145, throat: 145},
+        {pitch: 64, speed: 100, mouth: 200, throat: 150},
+        {pitch: 64, speed: 72, mouth: 128, throat: 128},
+    ];
+
+    var sam = new SamJs(voices[0]);
+    var thisvoice = 0;
+    var talking = false;
+    var textcheck = 'x';
+    var text = 'x';
+    var speed = 0;
+    var speechspeed = 80;
+
+    // voices
+    function setvoice(argument) {
+        thisvoice = argument;
+    }
+
+    // talk button
+    start.onclick = () => {
+        if (talking) {return}
+
+        talking = true;
+        sam = new SamJs(voices[thisvoice]);
+        sam.speak(textarea.value);
+        
+        // lips
+        text = textarea.value;
+        speed = voices[thisvoice].speed;
+        mouthshape(text);
+
+        // stop talking
+        setTimeout(function () {
+            talking = false;
+        }, textarea.value.length*70)
+    }
+
+
+
+    // create botface
+    function addFace () { 
+      const bothead = document.getElementById('bothead');
+      botface = document.createElement("div"); 
+      botface.id = 'botface';
+      botface.style.left = (window.innerWidth/2)-(botface.clientWidth/2)+'px';
+      botface.style.top = (window.innerHeight/2)-(botface.clientHeight/2)+'px';
+
+      const botLside = document.createElement("div");
+      botLside.id = 'botLside';
+      botLside.innerHTML = '(';
+      botface.appendChild(botLside);  
+
+      botLeye = document.createElement("div");
+      botLeye.id = 'botLeye';
+      botLeye.innerHTML = 'o';
+      botface.appendChild(botLeye);  
+
+      botmouth = document.createElement("div");
+      botmouth.id = 'botmouth';
+      botmouth.innerHTML = ')';
+      botface.appendChild(botmouth);  
+
+      botReye = document.createElement("div");
+      botReye.id = 'botReye';
+      botReye.innerHTML = 'o';
+      botface.appendChild(botReye);  
+
+      botRside = document.createElement("div");
+      botRside.id = 'botRside';
+      botRside.innerHTML = ')';
+      botface.appendChild(botRside);  
+
+      // add botface
+      document.body.insertBefore(botface, bothead); 
+
+      oldmouth = botmouth.innerHTML;
+      oldeye = botLeye.innerHTML;
+        
+    }// end addFace
+
+
+    // lip sync to letters
+    function mouthshape(text) {
+        for (let i = 0, len = text.length; i < len; i++) {
+            setTimeout( (function( i ) {
+              return function() {
+                lipsync(text[i]);
+              };
+            }( i )), (speed * i) );
+        } //for
+    } // end mouthshape
+
+
+    // shapes
+    function lipsync(arg) {
+      if (arg == ' ' || arg == '.') { botmouth.innerHTML = oldmouth; setmouth(1);}
+      if (arg == 'a' || arg == 'A') { botmouth.innerHTML = 'D'; setmouth(1); }
+      if (arg == 'b' || arg == 'B') { botmouth.innerHTML = '|'; setmouth(0); }
+      if (arg == 'c' || arg == 'C') { botmouth.innerHTML = 'D'; setmouth(1); }
+      if (arg == 'd' || arg == 'D') { botmouth.innerHTML = '|'; setmouth(0); }
+      if (arg == 'e' || arg == 'E') { botmouth.innerHTML = 'D'; setmouth(1); }
+      if (arg == 'f' || arg == 'F') { botmouth.innerHTML = '|'; setmouth(0); }
+      if (arg == 'g' || arg == 'G') { botmouth.innerHTML = 'D'; setmouth(1); }
+      if (arg == 'h' || arg == 'H') { botmouth.innerHTML = '|'; setmouth(0); }
+      if (arg == 'i' || arg == 'I') { botmouth.innerHTML = 'D'; setmouth(1); }
+      if (arg == 'j' || arg == 'J') { botmouth.innerHTML = '|'; setmouth(0); }
+      if (arg == 'k' || arg == 'K') { botmouth.innerHTML = '|'; setmouth(0); }
+      if (arg == 'l' || arg == 'L') { botmouth.innerHTML = '|'; setmouth(2); }
+      if (arg == 'm' || arg == 'M') { botmouth.innerHTML = '|'; setmouth(2); }
+      if (arg == 'n' || arg == 'N') { botmouth.innerHTML = ')'; setmouth(2); }
+      if (arg == 'o' || arg == 'O') { botmouth.innerHTML = 'o'; setmouth(3); }
+      if (arg == 'p' || arg == 'P') { botmouth.innerHTML = '|'; setmouth(0); }
+      if (arg == 'q' || arg == 'Q') { botmouth.innerHTML = 'D'; setmouth(0); }
+      if (arg == 'r' || arg == 'R') { botmouth.innerHTML = 'o'; setmouth(3); }
+      if (arg == 's' || arg == 'S') { botmouth.innerHTML = 'D'; setmouth(1); }
+      if (arg == 't' || arg == 'T') { botmouth.innerHTML = '|'; setmouth(0); }
+      if (arg == 'u' || arg == 'U') { botmouth.innerHTML = 'o'; setmouth(1); }
+      if (arg == 'v' || arg == 'V') { botmouth.innerHTML = '/'; setmouth(0); }
+      if (arg == 'w' || arg == 'W') { botmouth.innerHTML = 'o'; setmouth(3); }
+      if (arg == 'x' || arg == 'X') { botmouth.innerHTML = 'x'; setmouth(0); }
+      if (arg == 'y' || arg == 'Y') { botmouth.innerHTML = 'D'; setmouth(0); }
+      if (arg == 'z' || arg == 'Z') { botmouth.innerHTML = '/'; setmouth(0); }
+    }
+
+
+
+
+    //
+    function init(){  
+    window.scene = new THREE.Scene();
+    window.camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+
+    window.renderer = new THREE.WebGLRenderer({alpha: true, antialias: true, tranparent:true});
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    document.body.appendChild( renderer.domElement );
+
+    camera.position.z = 3;
+
+    // controls
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    // controls.enablePan = false;
+    // controls.enableZoom = false;
+    // controls.maxDistance = 50;
+    // controls.minDistance = 1;
+
+    // light
+    var light = new THREE.AmbientLight( 0xcccccc );
+    light.intensity = 1;
+    scene.add( light );
+
+    var directionalLight = new THREE.DirectionalLight( 0xffffff, 1 );
+    directionalLight.position.set(0,200,100)
+    directionalLight.rotation.set(-Math.PI/2,0,0)
+    scene.add( directionalLight );
+
+    // plane
+    bgtexture = new THREE.TextureLoader().load( 'mouthshapes2.png' );
+    bgtexture.magFilter = THREE.NearestFilter;
+    bgtexture.minFilter = THREE.NearestFilter;
+    bgtexture.repeat.x = 1 / 5;
+    bgtexture.wrapS = THREE.RepeatWrapping;
+    bgtexture.wrapT = THREE.RepeatWrapping;
+
+    bgmaterial = new THREE.MeshLambertMaterial({
+    map: bgtexture
+    ,transparent:true
+    });  
+
+    bggeometry = new THREE.PlaneGeometry(1, 1);
+
+    window.bg = new THREE.Mesh(bggeometry, bgmaterial);
+    bg.renderOrder = 1;
+    bg.castShadow = true;
+    scene.add(bg);
+
+} // end init
+
+
+
+
+
+
+
+window.addEventListener( 'resize', resize, false);
+// resize
+function resize(){
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize( window.innerWidth, window.innerHeight );
+}
+
+
+// set mouth shape on plane
+function setmouth(argument) {
+    var ms = argument*(1/5);
+    bg.material.map.offset.x = ms;
+}
+
+
+
+function animate() {
+    requestAnimationFrame( animate );
+    renderer.render( scene, camera );
+};
+
+
+//  >>>>>>>>>>>>>>> START <<<<<<<<<<<<<<<<<
+document.body.onload = addFace;
+init();
+setmouth(1);
+animate();
+
+
+</script>
+</body>
+
+</html>
