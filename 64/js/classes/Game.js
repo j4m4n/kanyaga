@@ -117,6 +117,7 @@ class Game {
     this.initHero();
     this.initHouses();
     this.initTrees();
+    this.initHit();
 
     if (this.debugMode) console.groupEnd();
   }
@@ -328,6 +329,22 @@ class Game {
     const treeId = "tree-" + treeGroup.children.length;
     treeInstance.root.name = treeId;
     if (this.debugMode) console.groupEnd();
+  }
+
+  initHit() {
+    let hitCanvas = document.createElement("canvas");
+    hitCanvas.id = "hitcanvas";
+    hitCanvas.width = 1024;
+    hitCanvas.height = 1024;
+    let hitCtx = hitCanvas.getContext("2d");
+    var imgx = document.getElementById("natronHit");
+    hitCtx.drawImage(imgx, 0, 0, 1024, 1024);
+    document.body.appendChild(hitCanvas);
+
+    // Store these on the class for later access
+    this.hitCanvas = hitCanvas;
+    this.hitCtx = hitCtx;
+    this.imgx = imgx;
   }
 
   initLighting() {
@@ -613,6 +630,47 @@ class Game {
     handler.update(timeElapsed, CONTROLS.keyboard);
   }
 
+  // Returns true if there is a collision object at the input coordinate. Could also be named checkHit(). In debug mode, also redraws the debug collision display
+  updateHit(posx, posz) {
+    // Make hitCanvas fields from the Game class easier to use in this function
+    let hitCanvas = this.hitCanvas;
+    let hitCtx = this.hitCtx;
+    // You can also do: let { hitCanvas, hitCtx } = this; // but this method was not supported in browsers in the past
+
+    let uv = {
+      u: posx / 256 / 2 + 0.5,
+      v: posz / 256 / 2 + 0.5,
+    };
+
+    // Redraw the image background in debug mode, to clear the square drawn on top
+    if (this.debugMode) hitCtx.drawImage(this.imgx, 0, 0, 1024, 1024);
+
+    // get colour
+    const pixel = hitCtx.getImageData(
+      uv.u * hitCanvas.width,
+      uv.v * hitCanvas.height,
+      1,
+      1,
+    );
+
+    // show place on map in debug mode
+    if (this.debugMode) {
+      hitCtx.strokeStyle = "#ffff00";
+      hitCtx.lineWidth = 4;
+      hitCtx.beginPath();
+      hitCtx.rect(
+       uv.u * hitCanvas.width,
+       uv.v * hitCanvas.height,
+       20,
+       20,
+     );
+     hitCtx.stroke();
+    }
+
+    let hitPixelValue = pixel.data[0];
+    return hitPixelValue > 5; // 5 is chosen because it's safely above 0 on a scale to 255
+  }
+
   updatePlayer(time) {
     const {
       camera,
@@ -655,11 +713,11 @@ class Game {
       frameMove.z += player.maxSpeed;
     }
 
-    let wouldHitCollision = updateHitcanvas(frameMove.x, frameMove.z);
+    let wouldHitCollision = this.updateHit(frameMove.x, frameMove.z);
     if (wouldHitCollision) {
       // Collision for full move, try moving in only one axis
-      let xCollision = updateHitcanvas(frameMove.x, player.z);
-      let zCollision = updateHitcanvas(player.x, frameMove.z);
+      let xCollision = this.updateHit(frameMove.x, player.z);
+      let zCollision = this.updateHit(player.x, frameMove.z);
       if (xCollision && zCollision) return;
       if (!xCollision) {
         player.x = frameMove.x;

@@ -197,15 +197,15 @@ DEBUG_UI.updateDebugMap = () => {
       s,
       s,
     );
-    hitCtx.fillStyle = "#ffffff";
-    hitCtx.fillRect(
+    GAME.hitCtx.fillStyle = "#ffffff";
+    GAME.hitCtx.fillRect(
       uv.u * debugCtx.canvas.width - s / 2,
       uv.v * debugCtx.canvas.height - s / 2,
       s,
       s,
     );
-    hitCtx.fillStyle = "#000000";
-    hitCtx.fillRect(
+    GAME.hitCtx.fillStyle = "#000000";
+    GAME.hitCtx.fillRect(
       5 + uv.u * debugCtx.canvas.width - s / 2,
       10 + uv.v * debugCtx.canvas.height - s / 2,
       s - 10,
@@ -226,8 +226,8 @@ DEBUG_UI.updateDebugMap = () => {
       s,
       s,
     );
-    hitCtx.fillStyle = "#ffffff";
-    hitCtx.fillRect(
+    GAME.hitCtx.fillStyle = "#ffffff";
+    GAME.hitCtx.fillRect(
       uv.u * debugCtx.canvas.width - s / 2,
       uv.v * debugCtx.canvas.height - s / 2,
       s,

@@ -119,3 +119,13 @@
 #mapSelectDiv button:hover {
   background-color: #ddd;
 }
+
+#hitcanvas {
+  background-color: red;
+  position: absolute;
+  z-index: 10;
+  bottom: 4px;
+  left: 4px;
+  transform: scale(0.2);
+  transform-origin: bottom left;
+}
