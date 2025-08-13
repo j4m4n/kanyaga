@@ -12,6 +12,8 @@ class GoldSmashMinigame {
         this.renderer.setSize( 64, 64 );
 
         this.hero = new THREE.Group();
+        this.hero.position.x = 0.5;
+        this.hero.position.y = 0.5;
         this.scene.add( this.hero );
 
         var geometry = new THREE.BoxGeometry( 0.8, 0.8, 0.8 );

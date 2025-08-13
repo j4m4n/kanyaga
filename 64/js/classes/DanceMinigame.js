@@ -1,37 +1,36 @@
 //DanceMinigame.pj
 
 class DanceMinigame {
-    // TODO gracefully use input from parent, not window events
+	// TODO gracefully use input from parent, not window events
 	// TODO get total song time, as metadata if necessary
 	// TODO pre-space out all the note times, don't spawn per time elapsed, spawn per time progression through total duration
 	score = 0;
 	zapYPixel = 1;
-    constructor(canvas, onQuit) {
-        this.canvas = canvas;
-        this.onQuit = onQuit;
+	constructor(canvas, onQuit) {
+		this.canvas = canvas;
+		this.onQuit = onQuit;
 		this.registerInputHandlers();
 		this.canvas.width = 64;
 		this.canvas.height = 64;
 		this.ctx = this.canvas.getContext('2d');
-        this.playMusic = () => {
+		this.playMusic = () => {
 			zzfxX = new AudioContext;
 			// Create a song
 			let mySongData = zzfxM(...bootsNCats);
 			// Play the song (returns a AudioBufferSourceNode)
 			let myAudioNode = zzfxP(...mySongData);
 		};
+		this.scoreDrawer = new ScoreDrawer(this);
 		this.danceClubScene = new DanceClubScene(this.canvas);
-        this.playMusic();
-        window.setTimeout(() => this.done(), 23000);
+		this.playMusic();
+		window.setTimeout(() => this.done(), 23000);
 	}
-    done() {
-        this.dead = true;
-        this.onQuit();
-    }
+	done() {
+		this.dead = true;
+		this.onQuit();
+	}
 	drawScore() {
-		this.ctx.fillStyle = '#eee';
-		this.ctx.font = '10px monospace';
-		this.ctx.fillText(`${10 * this.score}`, 32, 10);
+		this.scoreDrawer.update(this.ctx, 10 * this.score);
 	}
 	activePresses = [];
 	handlePress(dir) {
@@ -44,9 +43,11 @@ class DanceMinigame {
 			this.score -= 1;
 			this.danceClubScene.multiplier = 3;
 			this.score = Math.max(0, this.score);
+			this.scoreDrawer.addScore(0);
 			return;
 		}
 		let points = 3 - (matchingArrow.yPos - 1);
+		this.scoreDrawer.addScore(points);
 		this.score += points;
 		this.danceClubScene.multiplier = Math.min(10, this.danceClubScene.multiplier + 1);
 		this.beatArrows = this.beatArrows.filter(ba => !(ba.dir == dir && ba.yPos <= 3));
@@ -222,8 +223,8 @@ class DanceMinigame {
 		}
 	}
 	lastTime = 0;
-    update(time, keyboard) {
-        this.time = time;
+	update(time, keyboard) {
+		this.time = time;
 		this.ctx.globalAlpha = 1;
 		this.ctx.fillStyle = '#222';
 		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -242,9 +243,9 @@ class DanceMinigame {
 	}
 	lastArrowSpawn = [];
 	lastSpawn = 0;
-    BEAT_COUNT = 19;
+	BEAT_COUNT = 19;
 	beatArrows = [];
-    totalSpawnedBeatArrows = 0;
+	totalSpawnedBeatArrows = 0;
 	updateArrowTracks() {
 		let bpm = 144;
 		let arrowSpawnGap = 2 * 60 / 144;
@@ -261,9 +262,9 @@ class DanceMinigame {
 			return !missed;
 		});
 		if (time - this.lastSpawn < arrowSpawnGap) return;
-        if (this.totalSpawnedBeatArrows >= this.BEAT_COUNT) return;
+		if (this.totalSpawnedBeatArrows >= this.BEAT_COUNT) return;
 		this.lastSpawn = time;
-        this.totalSpawnedBeatArrows++;
+		this.totalSpawnedBeatArrows++;
 		this.beatArrows.push({
 			yPos: 64,
 			dir: ['left', 'right', 'up', 'down'][Math.floor(4 * Math.random())],
@@ -706,5 +707,78 @@ class WireframeFloor {
 		this.mesh.rotation.x = -0.5 * Math.PI;
 		//$mesh.scale.multiplyScalar(2);
 		this.scene.add(this.mesh);
+	}
+}
+
+class ScoreDrawer {
+	timingScores = [];
+	constructor(danceMinigame) {
+		this.danceMinigame = danceMinigame;
+		this.img = document.getElementById('danceScores');
+		this.gbfont = document.getElementById('gbfont');
+	}
+
+	getSourceCoords(num) {
+		let y = 0, h = 6;
+		if (num == 0) return { x: 0, y, w: 6, h };
+		if (num == 1) return { x: 7, y, w: 4, h };
+		if (num == 2) return { x: 12, y, w: 5, h };
+		if (num == 3) return { x: 18, y, w: 5, h };
+		if (num == 4) return { x: 24, y, w: 6, h };
+		if (num == 5) return { x: 31, y, w: 5, h };
+		if (num == 6) return { x: 37, y, w: 6, h };
+		if (num == 7) return { x: 44, y, w: 6, h };
+		if (num == 8) return { x: 51, y, w: 6, h };
+		if (num == 9) return { x: 58, y, w: 6, h };
+	}
+
+	drawTotalScore(ctx, totalScore) {
+		let digits = totalScore.split('');
+		let xOffset = 31;
+		for (let i = 0; i < digits.length; i++) {
+			let digit = digits[i];
+			let coords = this.getSourceCoords(digit);
+			if (!coords) continue;
+			ctx.drawImage(this.gbfont,
+				coords.x, coords.y, coords.w, coords.h,
+				xOffset, 2, coords.w, coords.h);
+			xOffset += coords.w + 1;
+		}
+	}
+
+	lastScoreTime = 0;
+	addScore(type) {
+		if (this.danceMinigame.time - this.lastScoreTime < 0.5) return;
+		this.lastScoreTime = this.danceMinigame.time;
+		this.timingScores.push({ type: type, yOffset: 0 });
+	}
+
+	update(ctx, totalScore) {
+		this.drawTotalScore(ctx, `${totalScore}`);
+
+		if (!this.timingScores.length) return;
+
+
+		this.timingScores.forEach(score => {
+      ctx.globalAlpha = Ease.inOutCubic((28 - score.yOffset) / 28);
+			this.drawScore(ctx, score)
+			score.yOffset += 0.2;
+		});
+    ctx.globalAlpha = 1;
+		this.timingScores = this.timingScores.filter(s => s.yOffset < 28);
+	}
+
+	drawScore(ctx, score) {
+		ctx.fillStyle = '#eee';
+
+		if (score.type == 0) {
+			ctx.drawImage(this.img, 3, 25, 27, 6, 32, 32 - Math.floor(score.yOffset), 27, 6);
+		} else if (score.type == 1) {
+			ctx.drawImage(this.img, 3, 20, 27, 6, 32, 32 - Math.floor(score.yOffset), 27, 6);
+		} else if (score.type == 2) {
+			ctx.drawImage(this.img, 3, 13, 27, 6, 32, 32 - Math.floor(score.yOffset), 27, 6);
+		} else {
+			ctx.drawImage(this.img, 3, 4, 29, 6, 32, 32 - Math.floor(score.yOffset), 29, 6);
+		}
 	}
 }
