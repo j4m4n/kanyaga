@@ -527,7 +527,7 @@ function imageDataGridToCanvas(arr, cw = 1, ch = 1) {
 }
 
 function sliceCanvas(...args) {
-    const imgDataArr = getBoundedLinearImageDataGrid(...args);
+    const imgDataArr = getLinearImageDataGrid(...args);
     // console.log("imgDataArr:", imgDataArr);
     return imgDataArr.map(imageData => {
         return imageDataToCanvas(imageData);
