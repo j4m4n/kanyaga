@@ -44,6 +44,13 @@ DEBUG_UI.initMapSelection = () => {
   legend.innerText = "Select Map:";
   fieldset.append(legend);
 
+  const btn = document.createElement("button");
+  btn.onclick = () => {
+    if (GAME.activeMinigameInfo) GAME.activeMinigameInfo.handler?.onQuit();
+  };
+  btn.innerText = 'Quit Minigame';
+  fieldset.append(btn);
+
   Object.keys(GAME.maps).forEach((mapName) => {
     console.log("mapName:", mapName);
     const btn = document.createElement("button");
