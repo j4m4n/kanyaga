@@ -319,136 +319,11 @@ class DanceMinigame {
 }
 
 let bootsNCats = [[[.1,0,4400,,,.05,,,,,,,,1,1,.15],[2,0,110,,,,1],[,0,440,,,,,30,,,,,,10],[,0,4400,,,.05,,30,,,,,,10],[.5,0,,.1,.1,,2,0,,,,,,,,,.5,,.1],[,0,440,.05,,.2,1,,-.01],[,0,880,.05,,.2,1,,-.01],[,0,440,.05,,1,1],[.2,0,880,.05,,1,1,,-.01,5]],[[[,.5,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,],[1,-.4,3,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,],[2,.5,,,,,1,,,,,,,,1,,,,,,,,5,,,,,,,,1,,,,,,,,5,,,,,,,,1,,,,,,,,5,,,,,,,,1,,,,],[3,-.3,,,3,,,,1,,,,1,,,,1,,,,1,,,,1,,,,1,,,,1,,,,3,,,,3,,,,5,,,,6,,,,8,,,,6,,,,5,,,,3,,],[4,-.1,1,,,,,,,,6,,,,,,5,,,,,,,,,,,,,,,,,,1,,,,,,,,8,,,,,,5,,,,,,,,,,6,,,,5,,,,]],[[,.5,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,],[1,-.4,3,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,],[2,.5,,,,,1,,,,,,,,1,,,,,,,,5,,,,,,,,1,,,,,,,,5,,,,,,,,1,,,,,,,,5,,,,,,,,1,,,,],[3,-.3,,,3,,,,1,,,,1,,,,1,,,,1,,,,1,,,,1,,,,1,,,,3,,,,3,,,,5,,,,6,,,,8,,,,6,,,,5,,,,3,,],[4,-.1,1,,,,,,,,6,,,,,,5,,,,,,,,,,,,,,,,,,1,,,,,,,,8,,,,,,5,,,,,,,,,,,,,,,,,,]],[[,.5,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,],[1,-.4,3,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,],[2,.5,,,,,1,,,,,,,,1,,,,,,,,5,,,,,,,,1,,,,,,,,5,,,,,,,,1,,,,,,,,5,,,,,,,,1,,,,],[3,-.3,,,3,,,,1,,,,1,,,,1,,,,1,,,,1,,,,1,,,,1,,,,3,,,,3,,,,5,,,,6,,,,8,,,,6,,,,5,,,,3,,],[4,-.1,1,,,,,,,,6,,,,,,5,,,,,,,,,,,,,,,,,,1,,,,,,,,8,,,,,,5,,,,,,,,,,,,,,,,,,],[5,,1,1,,1,1,,5,5,,5,5,,6,6,,6,6,,5,5,,5,5,,,,1,,3,,5,,1,1,,1,1,,5,5,,5,5,,8,8,,8,8,,5,5,,5,5,,,,1,,5,,3,,]],[[,.5,1,,1,,,1,,,1,,1,,,1,,,1,,]],[[7,,1,,,,,,,,,,,,,,,,,,,,,],[7,,8,,,,,,,,,,,,,,,,,,,,,],[8,,17,,,,,,,,,,,,,,,,,,,,,]],[[,.5,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,1,,1,,,1,,,],[1,-.4,3,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,1,,,,,,,,],[2,.5,,,,,1,,,,,,,,1,,,,,,,,5,,,,,,,,1,,,,,,,,5,,,,,,,,1,,,,,,,,5,,,,,,,,1,,,,],[3,-.3,,,3,,,,1,,,,1,,,,1,,,,1,,,,1,,,,1,,,,1,,,,3,,,,3,,,,5,,,,6,,,,8,,,,6,,,,5,,,,3,,],[4,-.1,1,,,,,,,,6,,,,,,5,,,,,,,,,,,,,,,,,,1,,,,,,,,8,,,,,,5,,,,,,,,,,,,,,,,,,],[6,,1,1,,1,1,,5,5,,5,5,,6,6,,6,6,,5,5,,5,5,,,,1,,3,,5,,1,1,,1,1,,5,5,,5,5,,8,8,,8,8,,5,5,,5,5,,,,1,,5,,3,,]]],[3,0,2,5,4],144,{"title":"boots n cats","instruments":["Instrument 0","Instrument 1","Instrument 2","Instrument 3","Instrument 4","Instrument 5","Instrument 6","Instrument 7","Instrument 8"],"patterns":["Pattern 0","Pattern 1","Pattern 2","Pattern 3","Pattern 4","Pattern 5"]}]
-let utils_mod = (() => {
 
-
-  //Utils.pj
-
-  class Utils {
-    constructor() {
-      this.isPad = window.navigator.vendor.includes('Apple');
-      this.isApple = window.navigator.vendor.includes('Apple');
-      this.isMacOs = window.navigator.oscpu && window.navigator.oscpu.includes('Mac OS X');
-    }
-    isPad = false
-    dist(p1, p2) {
-      return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-    }
-    pad(num, amt = 2) {
-      return num.toString().padStart(amt, '0');
-    }
-    prettyDateTime(includeSec = false) {
-      return `${this.prettyDate()} ${this.prettyTime(includeSec)}`;
-    }
-    prettyTime(includeSec = false) {
-      let p = (x) => this.pad(x);
-      let d = new Date();
-      let str = `${p(d.getHours())}:${p(d.getMinutes())}`;
-      if (!includeSec) return str;
-      return `${str}:${p(d.getSeconds())}`;
-    }
-    prettyDate() {
-      let p = (x) => this.pad(x);
-      let d = new Date();
-      return `${p(d.getFullYear().toString().substring(2))}.${p(d.getMonth() + 1)}.${p(d.getDate())}`;
-    }
-    range(num) {
-      return [...Array(num).keys()];
-    }
-    floatLerp(v1, v2, t) {
-      t = Math.min(1, Math.max(0, t));
-      return (v1 == v2) ? v1 : ((1 - t) * v1) + (t * v2);
-    }
-    dup(obj) {
-      if (window.structuredClone) {
-        return window.structuredClone(obj);
-      }
-      return JSON.parse(JSON.stringify(obj));
-    }
-    fmt(num) {
-      let format = new Intl.NumberFormat();
-      return format.format(num);
-    }
-    getBoundingBox(points) {
-      let min = { x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY };
-      let max = { x: Number.NEGATIVE_INFINITY, y: Number.NEGATIVE_INFINITY };
-      for (let i = 0; i < points.length; i++) {
-        const p = points[i];
-        if (p.x < min.x) min.x = p.x;
-        if (p.y < min.y) min.y = p.y;
-        if (p.x > max.x) max.x = p.x;
-        if (p.y > max.y) max.y = p.y;
-      }
-      return {
-        tl: min,
-        br: max,
-        w: (max.x - min.x),
-        h: (max.y - min.y),
-      };
-    }
-    aspectFit(targetSize, sourceSize) {
-      let xFit = targetSize.x / sourceSize.x;
-      let yFit = targetSize.y / sourceSize.y;
-      let minFit = Math.min(xFit, yFit);
-      return {
-        fitRatio: minFit,
-        size: {
-          x: minFit * sourceSize.x,
-          y: minFit * sourceSize.y,
-        },
-        offset: {
-          x: 0.5 * (targetSize.x - minFit * sourceSize.x),
-          y: 0.5 * (targetSize.y - minFit * sourceSize.y),
-        },
-      }
-    }
-    checkCollision(boxA, boxB) {
-      return boxA.x < boxB.x + boxB.w &&
-        boxA.x + boxA.w > boxB.x &&
-        boxA.y < boxB.y + boxB.h &&
-        boxA.y + boxA.h > boxB.y;
-    }
-    async canvasToBlob(canvas, format = 'jpeg', exportQuality) {
-      return new Promise((resolve) => {
-        canvas.toBlob((blob) => resolve(blob), `image/${format}`, exportQuality);
-      });
-    }
-    scrollIntoViewIfNeeded(el, centerIfNeeded = true) {
-      // adapted from https://gist.github.com/hsablonniere/2581101
-      var parent = el.parentNode,
-        parentComputedStyle = window.getComputedStyle(parent, null),
-        parentBorderTopWidth = parseInt(parentComputedStyle.getPropertyValue('border-top-width')),
-        parentBorderLeftWidth = parseInt(parentComputedStyle.getPropertyValue('border-left-width')),
-        overTop = el.offsetTop - parent.offsetTop < parent.scrollTop,
-        overBottom = (el.offsetTop - parent.offsetTop + el.clientHeight - parentBorderTopWidth) > (parent.scrollTop + parent.clientHeight),
-        overLeft = el.offsetLeft - parent.offsetLeft < parent.scrollLeft,
-        overRight = (el.offsetLeft - parent.offsetLeft + el.clientWidth - parentBorderLeftWidth) > (parent.scrollLeft + parent.clientWidth),
-        alignWithTop = overTop && !overBottom;
-      // custom addition
-      let overHalf = (el.offsetTop - parent.offsetTop + el.clientHeight - parentBorderTopWidth) > (parent.scrollTop + 0.5 * parent.clientHeight);
-      if ((overTop || overBottom || overHalf) && centerIfNeeded) {
-        parent.scrollTop = el.offsetTop - parent.offsetTop - parent.clientHeight / 2 - parentBorderTopWidth + el.clientHeight / 2;
-      }
-      if ((overLeft || overRight) && centerIfNeeded) {
-        parent.scrollLeft = el.offsetLeft - parent.offsetLeft - parent.clientWidth / 2 - parentBorderLeftWidth + el.clientWidth / 2;
-      }
-      if ((overTop || overBottom || overLeft || overRight) && !centerIfNeeded) {
-        el.scrollIntoView(alignWithTop);
-      }
-    }
-    isAsync(func) {
-      return func.constructor && func.constructor.name == 'AsyncFunction';
-    }
-    // converts e.g. (255, 0, 255) to '#ff00ff'
-    rgbToHex(r, g, b) {
-      return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1).toLowerCase()}`;
-    }
-  }
-  let UTILS = new Utils();
-  UTILS.nanoid = (t = 21) => { let e = "", r = crypto.getRandomValues(new Uint8Array(t)); for (; t--;) { let n = 63 & r[t]; e += n < 36 ? n.toString(36) : n < 62 ? (n - 26).toString(36).toUpperCase() : n < 63 ? "_" : "-" } return e };
-  return [UTILS];
-})();
-let UTILS = utils_mod[0];
+function floatLerp(v1, v2, t) {
+  t = Math.min(1, Math.max(0, t));
+  return (v1 == v2) ? v1 : ((1 - t) * v1) + (t * v2);
+}
 
 //DanceClubScene.pj
 
@@ -682,9 +557,9 @@ class SimpleCameraOrbiter {
     targetSpherical.phi = Math.max(minPhi, Math.min(maxPhi, targetSpherical.phi));
     // Perform a spherical lerp
     let amt = 7;
-    spherical.radius = UTILS.floatLerp(spherical.radius, targetSpherical.radius, dt * amt);
-    spherical.phi = UTILS.floatLerp(spherical.phi, targetSpherical.phi, dt * amt);
-    spherical.theta = UTILS.floatLerp(spherical.theta, targetSpherical.theta, dt * amt);
+    spherical.radius = floatLerp(spherical.radius, targetSpherical.radius, dt * amt);
+    spherical.phi = floatLerp(spherical.phi, targetSpherical.phi, dt * amt);
+    spherical.theta = floatLerp(spherical.theta, targetSpherical.theta, dt * amt);
     // Phi clamping, post-lerp
     spherical.makeSafe();
     spherical.phi = Math.max(minPhi, Math.min(maxPhi, spherical.phi));
