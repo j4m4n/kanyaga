@@ -75,6 +75,8 @@ class Game {
     this.initOverlays();
 
     if (this.debugMode) console.groupEnd();
+
+    this.startMinigame(4, 0);
   }
 
   initScene() {
@@ -614,7 +616,7 @@ class Game {
       index: i,
       startTime: time,
       canvas,
-      handler: new handlerClass(canvas, onQuit),
+      handler: new handlerClass(canvas, onQuit, minigameData.arg),
     };
     if (this.debugMode) console.groupEnd();
   }

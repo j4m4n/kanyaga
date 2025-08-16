@@ -161,10 +161,9 @@
             camOffsetY: 0,
             treeScale: 12,
             minigames: {
-                //0: { name: 'goldsmash', handlerClass: GoldSmashMinigame },
-                //0: { name: 'dig', handlerClass: DigMinigame },
-                0: { name: 'dig', handlerClass: IntroScene },
-                1: { name: 'dance', handlerClass: DanceMinigame },
+                0: {  handlerClass: DanceMinigame, arg: 'bootsNCats' },
+                1: { handlerClass: DanceMinigame, arg: 'lofiVibin' },
+                4: { handlerClass: IntroScene }
             }
         });
 
