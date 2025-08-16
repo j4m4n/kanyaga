@@ -31,6 +31,7 @@ canvas {
 }
 .scene-transition {
   z-index: 40; 
+  pointer-events: none;
 }
 #lvlbump, #lvlbump-debug {
   position: absolute;

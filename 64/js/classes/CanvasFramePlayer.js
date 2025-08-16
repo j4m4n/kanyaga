@@ -22,7 +22,6 @@ class CanvasFramePlayer {
 
     this._i = 0;
     this._running = false;
-    this._raf = null;
     this._lastTs = 0;
 
     this._buildTextMap();
@@ -84,10 +83,7 @@ class CanvasFramePlayer {
     this.defaultInterval = 1000 / this.fps;
   }
 
-  play() {
-    if (this._running || !this.frames.length) return;
-    this._running = true;
-    this._lastTs = performance.now();
+  update(time) {
     const tick = (ts) => {
       if (!this._running) return;
       this._draw(ts);
@@ -101,16 +97,17 @@ class CanvasFramePlayer {
         }
       }
 
-      this._raf = requestAnimationFrame(tick);
     };
-    this._raf = requestAnimationFrame(tick);
-    this._draw(this._lastTs);
+    tick(time);
+  }
+
+  play() {
+    if (this._running || !this.frames.length) return;
+    this._running = true;
   }
 
   pause() {
     this._running = false;
-    if (this._raf) cancelAnimationFrame(this._raf);
-    this._raf = null;
   }
 
   stop() {
@@ -141,7 +138,6 @@ class CanvasFramePlayer {
     const f = this.frames[this._i] || {};
     const dur = (f.duration > 0 ? f.duration : this.defaultInterval);
     this._frameEndsAt = ts + dur;
-    console.log("f.sfx:", f.sfx);
     // --- SFX support ---
     if (f.sfx && typeof f.sfx === 'string' && typeof SFX !== 'undefined' && SFX && SFX[f.sfx]) {
       try { zzfx(...SFX[f.sfx]); } catch (err) { console.warn('SFX error:', err); }
