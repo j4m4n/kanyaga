@@ -38,7 +38,6 @@ class DanceMinigame {
     t *= 6;
     let spriteIndex = Math.floor(t);
     if (spriteIndex > 3) spriteIndex = 6 - spriteIndex;
-    console.log('Uh: ', spriteIndex);
 
     let px = 4//36;
     let py = 33;
