@@ -26,7 +26,7 @@ class Game {
       },
       keyboard: {},
       joystick: {},
-      camOffsetY: 0,
+      camOffsetY: 10,
       minigames: {},
       canvas,
       onQuit,
@@ -294,7 +294,8 @@ class Game {
       houseId,
       obj: houseInstance.instances.door,
       minigameIndex: houseGroup.children.length - 1,
-      pivot: houseInstance.groups.pivot,
+      //pivot: houseInstance.groups.pivot,
+      pivot,
     });
     if (this.debugMode) console.groupEnd();
   }
@@ -434,10 +435,12 @@ class Game {
       this.prevX = position.x;
     }
     if (this.prevX !== position.x) {
-      console.log("value:", value);
+      console.log("value:", value, this.currentMap.waterLevel);
     }
     this.prevX = position.x;
-    // if (value < -300) value = -300;
+    if (isPlayer) {
+      if (value < this.currentMap.waterLevel) value = this.currentMap.waterLevel;
+    }
     if (this.debugMode) console.groupEnd();
     return value;
   }
@@ -452,11 +455,12 @@ class Game {
   checkDoors(time) {
     if (this.debugMode) console.groupCollapsed("GAME.checkDoors");
     const { hero, doorDataList, player } = this;
-    let entranceDist = 70;
+    let entranceDist = 40;
     let entranceTimeSec = 0.7;
 
     if (this.triggeredDoorway) {
       let doorway = this.triggeredDoorway;
+      let opacity = (time - doorway.triggerTime) / (0.5 * entranceTimeSec)
       if (doorway.doorData.pivot) {
         doorway.doorData.pivot.rotation.y = -1.571 * opacity;
       }
@@ -736,7 +740,7 @@ class Game {
     player.zlerp += (player.z - player.zlerp) * 0.2;
 
     // set hero on ground
-    hero.position.y = this.getMapHeight(player);
+    hero.position.y = this.getMapHeight(player) + 20;
     camera.position.y = this.camOffsetY + (hero.position.y + 40);
     camera.lookAt(hero.position);
 
