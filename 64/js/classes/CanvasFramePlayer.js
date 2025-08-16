@@ -7,7 +7,8 @@
   - Optional SFX: frame.sfx -> if SFX[frame.sfx] exists, runs zzfx(...SFX[frame.sfx])
 */
 class CanvasFramePlayer {
-  constructor(targetCanvas, frames = [], fps = 12) {
+  constructor(targetCanvas, frames = [], fps = 12, onDone = () => {}) {
+    this.onDone = onDone;
     this.target = targetCanvas;
     this._forceFixed64(); // <<< lock size & pixel ratio
 
@@ -18,7 +19,7 @@ class CanvasFramePlayer {
     this.fps = Math.max(1, fps | 0);
     this.defaultInterval = 1000 / this.fps;
 
-    this.loop = true;
+    this.loop = false;
 
     this._i = 0;
     this._running = false;
@@ -44,7 +45,7 @@ class CanvasFramePlayer {
     // pre-rendered text canvas for current frame
     this._textCanvas = null;
 
-    if (this.frames.length) this._enterFrame(0, performance.now());
+    if (this.frames.length) this._enterFrame(0, this._lastTs);
   }
 
   // --- fixed-size setup ---
@@ -75,7 +76,7 @@ class CanvasFramePlayer {
     this._buildTextMap();
     this._group = null;
     this._i = 0;
-    if (this.frames.length) this._enterFrame(0, performance.now());
+    if (this.frames.length) this._enterFrame(0, this._lastTs);
   }
 
   setFPS(fps) {
@@ -114,19 +115,19 @@ class CanvasFramePlayer {
     this.pause();
     this._group = null;
     this._i = 0;
-    if (this.frames.length) this._enterFrame(0, performance.now());
+    if (this.frames.length) this._enterFrame(0, this._lastTs);
   }
 
   goto(index) {
     if (!this.frames.length) return;
-    const ts = performance.now();
+    const ts = this._lastTs;
     const i = Math.max(0, Math.min(index | 0, this.frames.length - 1));
     this._group = null;
     this._enterFrame(i, ts);
     this._draw(ts);
   }
 
-  next() { this._advanceFrame(performance.now()); }
+  next() { this._advanceFrame(this._lastTs); }
 
   // --- internals ---
   _enterFrame(index, ts) {
@@ -168,10 +169,14 @@ class CanvasFramePlayer {
         const lastIdx = this._group.indices[this._group.indices.length - 1];
         let next = lastIdx + 1;
         if (next >= this.frames.length) {
-          if (!this.loop) { this.pause(); return; }
+          if (!this.loop) {
+            this.pause();
+            this.onDone();
+            return;
+          }
           next = 0;
         }
-        this._enterFrame(next, performance.now());
+        this._enterFrame(next, this._lastTs);
       };
     } else {
       this._group = null;
@@ -180,7 +185,7 @@ class CanvasFramePlayer {
         this._clickLogic = () => {
           if (this._awaitingClick) {
             this._awaitingClick = false;
-            this._advanceFrame(performance.now());
+            this._advanceFrame(this._lastTs);
           }
         };
       }
@@ -217,7 +222,11 @@ class CanvasFramePlayer {
   _advanceFrame(ts) {
     let next = this._i + 1;
     if (next >= this.frames.length) {
-      if (!this.loop) { this.pause(); return; }
+      if (!this.loop) {
+        this.pause();
+        this.onDone();
+        return;
+      }
       next = 0;
     }
     this._enterFrame(next, ts);

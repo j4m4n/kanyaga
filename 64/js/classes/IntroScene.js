@@ -168,7 +168,7 @@ class IntroScene {
       })
     );
 
-    this.cfp = new CanvasFramePlayer(target, frames, 12);
+    this.cfp = new CanvasFramePlayer(target, frames, 12, () => this.onQuit());
     this.cfp.play();
   }
 
