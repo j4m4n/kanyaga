@@ -84,7 +84,7 @@ class Game {
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(72, 1, 0.1, 10000);
-    this.camera.position.z = 6;
+    this.camera.position.z = 2;
 
     this.renderer = new THREE.WebGLRenderer({
       alpha: true,
@@ -120,6 +120,7 @@ class Game {
     this.initHouses();
     this.initTrees();
     this.initHit();
+    this.initCharacters();
 
     if (this.debugMode) console.groupEnd();
   }
@@ -348,6 +349,52 @@ class Game {
     this.hitCanvas = hitCanvas;
     this.hitCtx = hitCtx;
     this.imgx = imgx;
+  }
+
+  initCharacters() {
+    this.currentMap.characterGroup = new THREE.Group();
+    this.scene.add(this.currentMap.characterGroup);
+    this.objectArr.push(this.currentMap.characterGroup);
+
+    let elf = new CrappyObjectInstance(elf_model);
+    let x = 250;
+    let z = -190;
+    let y = this.getMapHeight({x,z}, false);
+    elf.root.position.set(x, y, z);
+    elf.root.scale.multiplyScalar(30);
+    this.currentMap.characterGroup.add(elf.root);
+
+    let dryad = new CrappyObjectInstance(dryad_model);
+    x = -250;
+    z = -190;
+    y = this.getMapHeight({x,z}, false);
+    dryad.root.position.set(x, y, z);
+    dryad.root.scale.multiplyScalar(30);
+    this.currentMap.characterGroup.add(dryad.root);
+
+    let squirrel = new CrappyObjectInstance(squirrel_model);
+    x = 40;
+    z = -190;
+    y = this.getMapHeight({x,z}, false);
+    squirrel.root.position.set(x, y, z);
+    squirrel.root.scale.multiplyScalar(30);
+    this.currentMap.characterGroup.add(squirrel.root);
+
+    let kid = new CrappyObjectInstance(kid_model);
+    x = 0;
+    z = -40;
+    y = this.getMapHeight({x,z}, false);
+    kid.root.position.set(x, y, z);
+    kid.root.scale.multiplyScalar(30);
+    this.currentMap.characterGroup.add(kid.root);
+
+    let dad = new CrappyObjectInstance(dad_model);
+    x = 40;
+    z = -40;
+    y = this.getMapHeight({x,z}, false);
+    dad.root.position.set(x, y, z);
+    dad.root.scale.multiplyScalar(30);
+    this.currentMap.characterGroup.add(dad.root);
   }
 
   initLighting() {
@@ -743,8 +790,8 @@ class Game {
 
     // set hero on ground
     hero.position.y = this.getMapHeight(player) + 20;
-    camera.position.y = this.camOffsetY + (hero.position.y + 40);
-    camera.lookAt(hero.position);
+    camera.position.y = this.camOffsetY + (hero.position.y + 50);
+    camera.lookAt(hero.position.clone().add(new THREE.Vector3(0,50,0)));
 
     // walking camera shake
     if (player.moving && !wouldHitCollision) {

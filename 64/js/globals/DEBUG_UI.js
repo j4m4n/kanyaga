@@ -197,7 +197,7 @@ DEBUG_UI.updateDebugMap = () => {
       v: house.position.z / 4096 / 2 + 0.5,
     };
     debugCtx.fillStyle = "#00ffff";
-    const s = 20;
+    const s = 15;
     debugCtx.fillRect(
       uv.u * debugCtx.canvas.width - s / 2,
       uv.v * debugCtx.canvas.height - s / 2,
@@ -212,11 +212,12 @@ DEBUG_UI.updateDebugMap = () => {
       s,
     );
     GAME.hitCtx.fillStyle = "#000000";
+    let doorS = 4;
     GAME.hitCtx.fillRect(
-      5 + uv.u * debugCtx.canvas.width - s / 2,
-      10 + uv.v * debugCtx.canvas.height - s / 2,
-      s - 10,
-      s - 5,
+      doorS + uv.u * debugCtx.canvas.width - s / 2,
+      2 * doorS + uv.v * debugCtx.canvas.height - s / 2,
+      s - 2 * doorS,
+      s - doorS,
     );
   });
 
@@ -226,7 +227,29 @@ DEBUG_UI.updateDebugMap = () => {
       v: tree.position.z / 4096 / 2 + 0.5,
     };
     debugCtx.fillStyle = "#00ff00";
-    const s = 10;
+    const s = 5;
+    debugCtx.fillRect(
+      uv.u * debugCtx.canvas.width - s / 2,
+      uv.v * debugCtx.canvas.height - s / 2,
+      s,
+      s,
+    );
+    GAME.hitCtx.fillStyle = "#ffffff";
+    GAME.hitCtx.fillRect(
+      uv.u * debugCtx.canvas.width - s / 2,
+      uv.v * debugCtx.canvas.height - s / 2,
+      s,
+      s,
+    );
+  });
+
+  GAME.currentMap.characterGroup.children.forEach((tree) => {
+    let uv = {
+      u: tree.position.x / 4096 / 2 + 0.5,
+      v: tree.position.z / 4096 / 2 + 0.5,
+    };
+    debugCtx.fillStyle = "#00ff00";
+    const s = 3;
     debugCtx.fillRect(
       uv.u * debugCtx.canvas.width - s / 2,
       uv.v * debugCtx.canvas.height - s / 2,

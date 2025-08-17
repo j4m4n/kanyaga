@@ -41,7 +41,7 @@ class CrappyObjectInstance  {
     }
 
     instantiateObject(obj){
-        let g = this.getGeometryForType(obj.type, obj.args);
+        let g = this.getGeometryForType(obj.type, obj.args || []);
         let mat = this.getMatInstance(obj.matId);
         let mesh = new THREE.Mesh(g, mat);
 
