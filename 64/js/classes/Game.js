@@ -766,6 +766,12 @@ class Game {
       frameMove.z += player.maxSpeed;
     }
 
+    // joystick movement
+    if (player.moving) {
+      frameMove.z += player.vy;
+      frameMove.x += player.vx;
+    }
+
     let wouldHitCollision = this.updateHit(frameMove.x, frameMove.z);
     if (wouldHitCollision) {
       // Collision for full move, try moving in only one axis
@@ -796,12 +802,6 @@ class Game {
     // walking camera shake
     if (player.moving && !wouldHitCollision) {
       camera.position.y += Math.cos(time * 20) * 2;
-    }
-
-    // combined movement
-    if (player.moving) {
-      player.z += player.vy;
-      player.x += player.vx;
     }
 
     // legs

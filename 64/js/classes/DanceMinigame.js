@@ -7,8 +7,13 @@ class DanceMinigame {
   score = 0;
   zapYPixel = 1;
   constructor(canvas, onQuit, songName) {
+    let overlay = document.getElementById('joystick-overlay');
+    this.onQuit = () => {
+      if (overlay) overlay.style['pointerEvents'] = 'auto'; // restore the joystick overlay's clickability
+      onQuit();
+    };
+    if (overlay) overlay.style['pointerEvents'] = 'none'; // allow clicks past the joystick overlay
     this.canvas = canvas;
-    this.onQuit = onQuit;
     this.registerInputHandlers();
     this.canvas.width = 64;
     this.canvas.height = 64;
