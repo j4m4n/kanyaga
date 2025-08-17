@@ -309,7 +309,7 @@ class IntroScene {
     frames.push({
       canvas: ACTORS.dad.shock,
       duration: 455,
-      text: "Tell her to bring her DJ equipment!",
+      text: "Tell her to bring    her DJ equipment!",
       sfx: 'talk4'
     });
     frames.push({
